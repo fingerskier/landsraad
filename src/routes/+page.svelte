@@ -133,7 +133,10 @@
   <section>
     <div class="section-head">
       <h2>Councillors</h2>
-      <Button href="/jobs/new?for=__all__">+ Job for all</Button>
+      <div class="head-actions">
+        <Button href="/meetings/new">+ New meeting</Button>
+        <Button href="/jobs/new?for=__all__">+ Job for all</Button>
+      </div>
     </div>
 
     {#if c.councillors.length === 0}
@@ -220,7 +223,8 @@
   .meta { color: var(--muted); margin: 0.5rem 0 0; font-size: 0.9em; }
   .head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; }
   .head-actions { display: flex; gap: 0.5rem; align-items: center; }
-  .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .section-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+  .head-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
   h2 { margin: 0; font-size: 1.15rem; }
   .panel { margin-top: 2.5rem; }
 
