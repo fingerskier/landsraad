@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
+  import { afterNavigate, invalidateAll } from '$app/navigation';
+  import { page } from '$app/state';
   import { onDestroy, onMount } from 'svelte';
   import { PageHeader, Button, StatusBadge, Badge, EmptyState } from '$lib/components';
   import { relTime } from '$lib/time';
@@ -12,7 +13,6 @@
   onMount(() => { timer = setInterval(() => invalidateAll(), 2000); });
   onDestroy(() => { if (timer) clearInterval(timer); });
 
-  let filter = $state<'all' | JobStatus>('all');
   const FILTERS: Array<{ key: 'all' | JobStatus; label: string }> = [
     { key: 'all', label: 'All' },
     { key: 'running', label: 'Running' },
@@ -21,6 +21,20 @@
     { key: 'succeeded', label: 'Succeeded' },
     { key: 'cancelled', label: 'Cancelled' }
   ];
+
+  // A `?status=` query param (e.g. from the header attention badges) preselects a
+  // filter; tab clicks still override it locally without touching the URL. Sync from
+  // the URL only on real navigations via afterNavigate — NOT a $effect on page.url,
+  // which the 2s poll's invalidateAll would re-run, clobbering a manual tab click.
+  const VALID = new Set<'all' | JobStatus>(FILTERS.map((f) => f.key));
+  function statusFromUrl(): 'all' | JobStatus {
+    const s = page.url.searchParams.get('status') as 'all' | JobStatus | null;
+    return s && VALID.has(s) ? s : 'all';
+  }
+  let filter = $state<'all' | JobStatus>(statusFromUrl());
+  afterNavigate(() => {
+    filter = statusFromUrl();
+  });
   const shown = $derived(
     filter === 'all' ? data.jobs : data.jobs.filter((j) => j.status === filter)
   );

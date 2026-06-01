@@ -23,14 +23,14 @@
   // Glanceable status, shown only when non-zero. Navigation lives in the menu;
   // this cluster is a pure attention signal (failures/proposals first), so a
   // power user knows what needs them without opening anything.
-  type Att = { n: number; label: string; tone: 'fail' | 'prop' | 'run' | 'meet' };
+  type Att = { n: number; label: string; tone: 'fail' | 'prop' | 'run' | 'meet'; href: string };
   const attention = $derived<Att[]>(
     (
       [
-        { n: nav.failed, label: 'failed', tone: 'fail' },
-        { n: nav.proposals, label: nav.proposals === 1 ? 'proposal' : 'proposals', tone: 'prop' },
-        { n: nav.running, label: 'running', tone: 'run' },
-        { n: nav.meetings, label: nav.meetings === 1 ? 'meeting' : 'meetings', tone: 'meet' }
+        { n: nav.failed, label: 'failed', tone: 'fail', href: '/jobs?status=failed' },
+        { n: nav.proposals, label: nav.proposals === 1 ? 'proposal' : 'proposals', tone: 'prop', href: '/proposals' },
+        { n: nav.running, label: 'running', tone: 'run', href: '/jobs?status=running' },
+        { n: nav.meetings, label: nav.meetings === 1 ? 'meeting' : 'meetings', tone: 'meet', href: '/meetings' }
       ] as Att[]
     ).filter((a) => a.n > 0)
   );
@@ -49,7 +49,7 @@
   {#if hasCouncil && attention.length}
     <div class="attention" aria-label="Needs attention">
       {#each attention as a (a.label)}
-        <span class="att {a.tone}">{a.n}&nbsp;{a.label}</span>
+        <a class="att {a.tone}" href={a.href}>{a.n}&nbsp;{a.label}</a>
       {/each}
     </div>
   {/if}
@@ -123,7 +123,11 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     color: var(--muted);
+    text-decoration: none;
+    padding: 0.15rem 0.3rem;
+    border-radius: 5px;
   }
+  .att:hover { background: var(--surface-1); text-decoration: underline; }
   .att::before {
     content: '';
     width: 0.5rem;
