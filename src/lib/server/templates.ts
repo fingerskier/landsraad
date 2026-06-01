@@ -147,6 +147,11 @@ function validateSampleJob(raw: unknown, path: string): TemplateSampleJob {
 const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SECRET_KEY_RE = /key|api|token|secret|password|passwd|credential|auth|private/i;
 
+/** True if an env key's name looks like a secret and must never be exported. */
+export function isSecretEnvKey(key: string): boolean {
+  return SECRET_KEY_RE.test(key);
+}
+
 function validateEnvPair(raw: unknown, path: string): TemplateEnvPair {
   if (!isObject(raw)) throw new TemplateValidationError(`${path} must be an object.`);
   const key = requireString(raw, path, 'key');
@@ -555,7 +560,7 @@ export async function exportSelection(s: ExportSelection): Promise<CouncilTempla
   if (s.env_keys.length > 0) {
     const current = new Map(readCouncilEnv().map((p) => [p.key, p.value]));
     for (const key of s.env_keys) {
-      if (SECRET_KEY_RE.test(key)) {
+      if (isSecretEnvKey(key)) {
         throw new TemplateValidationError(
           `Refusing to export env key ${JSON.stringify(key)}: matches a secret-name pattern.`
         );
