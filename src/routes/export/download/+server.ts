@@ -1,4 +1,4 @@
-import { exportSelection } from '$lib/server/templates';
+import { exportSelection, TemplateValidationError } from '$lib/server/templates';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -11,13 +11,23 @@ export const POST: RequestHandler = async ({ request }) => {
   const councillor_slugs = form.getAll('councillors').map(String);
   const memory_slugs = form.getAll('memory').map(String);
   const sample_job_ids = form.getAll('jobs').map(String);
+  const env_keys = form.getAll('env_keys').map(String);
 
-  const template = await exportSelection({
-    council: { name, version, description, author, license },
-    councillor_slugs,
-    memory_slugs,
-    sample_job_ids
-  });
+  let template;
+  try {
+    template = await exportSelection({
+      council: { name, version, description, author, license },
+      councillor_slugs,
+      memory_slugs,
+      sample_job_ids,
+      env_keys
+    });
+  } catch (err) {
+    if (err instanceof TemplateValidationError) {
+      return new Response(err.message, { status: 400, headers: { 'Content-Type': 'text/plain' } });
+    }
+    throw err;
+  }
   const body = JSON.stringify(template, null, 2) + '\n';
   const filename = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.template.json`;
   return new Response(body, {

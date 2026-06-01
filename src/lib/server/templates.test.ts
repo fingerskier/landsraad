@@ -75,6 +75,42 @@ describe('parseTemplate', () => {
     const bad = { ...validTemplate, name: undefined };
     expect(() => parseTemplate(JSON.stringify(bad))).toThrow(TemplateValidationError);
   });
+
+  it('parses an env block', () => {
+    const good = {
+      ...validTemplate,
+      env: [
+        { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+        { key: 'LANDSRAAD_MEETING_TURN_NUDGE', value: 'Be terse — 1-3 sentences.', comment: 'shorter turns' }
+      ]
+    };
+    const t = parseTemplate(JSON.stringify(good));
+    expect(t.env).toHaveLength(2);
+    expect(t.env?.[0]).toEqual({ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite', comment: undefined });
+  });
+
+  it('rejects env that is not an array', () => {
+    const bad = { ...validTemplate, env: { LANDSRAAD_MEETING_MODEL: 'lite' } };
+    expect(() => parseTemplate(JSON.stringify(bad))).toThrow(/env must be an array/);
+  });
+
+  it('rejects an env key that is not a valid env identifier', () => {
+    const bad = { ...validTemplate, env: [{ key: '1BAD-KEY', value: 'x' }] };
+    expect(() => parseTemplate(JSON.stringify(bad))).toThrow(/env\[0\]\.key/);
+  });
+
+  it('rejects an env value containing a newline', () => {
+    const bad = { ...validTemplate, env: [{ key: 'OK_KEY', value: 'a\nb' }] };
+    expect(() => parseTemplate(JSON.stringify(bad))).toThrow(/env\[0\]\.value/);
+  });
+
+  it('rejects duplicate env keys', () => {
+    const bad = {
+      ...validTemplate,
+      env: [{ key: 'DUP', value: 'a' }, { key: 'DUP', value: 'b' }]
+    };
+    expect(() => parseTemplate(JSON.stringify(bad))).toThrow(/duplicate env key "DUP"/);
+  });
 });
 
 import { afterEach, beforeEach, vi } from 'vitest';
@@ -200,6 +236,30 @@ describe('planApply', () => {
     expect(plan.memory.overwrite).toEqual(['house-rules']);
     expect(plan.memory.add).toEqual([]);
   });
+
+  it('plans env adds on a fresh council', async () => {
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]
+    }));
+    const plan = await planApply(t);
+    expect(plan.env).toEqual({ add: ['LANDSRAAD_MEETING_MODEL'], overwrite: [] });
+  });
+
+  it('plans env overwrite when the key already exists in .env', async () => {
+    await createCouncil({ name: 'Existing' });
+    await writeCouncilEnv([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'pro' }]);
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [
+        { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+        { key: 'NEW_KEY', value: 'x' }
+      ]
+    }));
+    const plan = await planApply(t);
+    expect(plan.env.overwrite).toEqual(['LANDSRAAD_MEETING_MODEL']);
+    expect(plan.env.add).toEqual(['NEW_KEY']);
+  });
 });
 
 import { readCouncil, updateCouncil } from './councils';
@@ -259,6 +319,49 @@ describe('applyTemplate (empty cwd)', () => {
     expect(jobs[0].status).toBe('queued');
     expect(jobs[0].title).toBe('Hello');
     expect(jobs[0].councillor_slug).toBe('mocky');
+  });
+
+  it('seeds .env on a fresh council apply', async () => {
+    const { readCouncilEnv } = await import('./env-file');
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]
+    }));
+    await applyTemplate(t, { confirmedOverwrite: false });
+    expect(readCouncilEnv()).toEqual([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]);
+  });
+
+  it('requires confirmation when an env key would be overwritten', async () => {
+    const { writeCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'pro' }]);
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]
+    }));
+    await expect(applyTemplate(t, { confirmedOverwrite: false })).rejects.toBeInstanceOf(
+      TemplateNeedsConfirmation
+    );
+  });
+
+  it('overwrites in place and preserves unrelated user keys when confirmed', async () => {
+    const { writeCouncilEnv, readCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([
+      { key: 'USER_SECRET', value: 'keep-me' },
+      { key: 'LANDSRAAD_MEETING_MODEL', value: 'pro' }
+    ]);
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [
+        { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+        { key: 'LANDSRAAD_MEETING_TURN_NUDGE', value: 'Be terse.' }
+      ]
+    }));
+    await applyTemplate(t, { confirmedOverwrite: true });
+    expect(readCouncilEnv()).toEqual([
+      { key: 'USER_SECRET', value: 'keep-me' },
+      { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+      { key: 'LANDSRAAD_MEETING_TURN_NUDGE', value: 'Be terse.' }
+    ]);
   });
 });
 
@@ -342,7 +445,8 @@ describe('exportSelection', () => {
       council: { name: 'Exported', version: '0.1.0' },
       councillor_slugs: ['mocky'],
       memory_slugs: [],
-      sample_job_ids: []
+      sample_job_ids: [],
+      env_keys: []
     });
     expect(t.name).toBe('Exported');
     expect(t.councillors.map((c) => c.slug ?? slugify(c.name))).toEqual(['mocky']);
@@ -357,7 +461,8 @@ describe('exportSelection', () => {
       council: { name: 'Exported', version: '0.1.0' },
       councillor_slugs: ['mocky'],
       memory_slugs: [],
-      sample_job_ids: [sampleId]
+      sample_job_ids: [sampleId],
+      env_keys: []
     });
     expect(t.sample_jobs).toHaveLength(1);
     expect(t.sample_jobs?.[0].title).toBe('Sample');
@@ -369,7 +474,8 @@ describe('exportSelection', () => {
       council: { name: 'RT', version: '0.1.0', description: 'rt' },
       councillor_slugs: ['mocky', 'polly'],
       memory_slugs: ['house-rules'],
-      sample_job_ids: []
+      sample_job_ids: [],
+      env_keys: []
     });
     const json = JSON.stringify(exported);
 
@@ -387,6 +493,29 @@ describe('exportSelection', () => {
     }
   });
 
+  it('round-trip: export env -> load -> apply seeds .env in fresh cwd', async () => {
+    const { writeCouncilEnv, readCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]);
+    const exported = await exportSelection({
+      council: { name: 'RTE', version: '0.1.0' },
+      councillor_slugs: ['mocky'],
+      memory_slugs: [],
+      sample_job_ids: [],
+      env_keys: ['LANDSRAAD_MEETING_MODEL']
+    });
+    const json = JSON.stringify(exported);
+
+    const freshRoot = mkdtempSync(join(tmpdir(), 'ex-fresh-env-'));
+    process.env.LANDSRAAD_COUNCIL_ROOT = freshRoot;
+    try {
+      const reparsed = parseTemplate(json);
+      await applyTemplate(reparsed, { confirmedOverwrite: false });
+      expect(readCouncilEnv()).toEqual([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]);
+    } finally {
+      rmSync(freshRoot, { recursive: true, force: true });
+    }
+  });
+
   it('never leaks a council .env secret into the export bundle', async () => {
     const SECRET = 'sk-super-secret-do-not-leak';
     await writeCouncilEnv([{ key: 'OPENAI_API_KEY', value: SECRET }]);
@@ -394,9 +523,64 @@ describe('exportSelection', () => {
       council: { name: 'Exported', version: '0.1.0' },
       councillor_slugs: ['mocky', 'polly'],
       memory_slugs: ['house-rules'],
-      sample_job_ids: []
+      sample_job_ids: [],
+      env_keys: []
     });
     expect(JSON.stringify(exported)).not.toContain(SECRET);
     expect(JSON.stringify(exported)).not.toContain('OPENAI_API_KEY');
+  });
+
+  it('exports selected env keys with values', async () => {
+    const { writeCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([
+      { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+      { key: 'IGNORED', value: 'no' }
+    ]);
+    const out = await exportSelection({
+      council: { name: 'X', version: '1.0.0' },
+      councillor_slugs: [],
+      memory_slugs: [],
+      sample_job_ids: [],
+      env_keys: ['LANDSRAAD_MEETING_MODEL']
+    });
+    expect(out.env).toEqual([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]);
+  });
+
+  it('omits env when no env keys are selected', async () => {
+    const out = await exportSelection({
+      council: { name: 'X', version: '1.0.0' },
+      councillor_slugs: [],
+      memory_slugs: [],
+      sample_job_ids: [],
+      env_keys: []
+    });
+    expect(out.env).toBeUndefined();
+  });
+
+  it('refuses to export a secret-named env key', async () => {
+    const { writeCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([{ key: 'ANTHROPIC_API_KEY', value: 'sk-xxx' }]);
+    await expect(
+      exportSelection({
+        council: { name: 'X', version: '1.0.0' },
+        councillor_slugs: [],
+        memory_slugs: [],
+        sample_job_ids: [],
+        env_keys: ['ANTHROPIC_API_KEY']
+      })
+    ).rejects.toThrow(/ANTHROPIC_API_KEY/);
+  });
+
+  it('skips a selected env key that is not present in .env', async () => {
+    const { writeCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([{ key: 'PRESENT', value: 'yes' }]);
+    const out = await exportSelection({
+      council: { name: 'X', version: '1.0.0' },
+      councillor_slugs: [],
+      memory_slugs: [],
+      sample_job_ids: [],
+      env_keys: ['PRESENT', 'MISSING']
+    });
+    expect(out.env).toEqual([{ key: 'PRESENT', value: 'yes' }]);
   });
 });

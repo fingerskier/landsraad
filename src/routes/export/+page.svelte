@@ -16,7 +16,7 @@
     <h2>Privacy checklist</h2>
     <ul class="privacy-list">
       <li><span class="mark ok">✓</span> No run artifacts — transcripts and run history are never exported.</li>
-      <li><span class="mark ok">✓</span> No <code>.env</code> or secrets — adapter keys stay on your machine.</li>
+      <li><span class="mark optin">○</span> Env vars are opt-in — none included unless ticked below; secret-named keys (API keys, tokens, passwords) are never offered.</li>
       <li><span class="mark ok">✓</span> Queued jobs only — running, finished, and failed jobs are excluded.</li>
       <li><span class="mark optin">○</span> Memory notes are opt-in — none included unless you tick them below.</li>
     </ul>
@@ -83,6 +83,17 @@
         </label>
       {/each}
       {#if data.queuedJobs.length === 0}<p class="meta">No queued jobs.</p>{/if}
+    </fieldset>
+
+    <fieldset>
+      <legend>Environment variables (default: none)</legend>
+      {#each data.envKeys as k (k)}
+        <label class="check">
+          <input type="checkbox" name="env_keys" value={k} />
+          <span><code>{k}</code></span>
+        </label>
+      {/each}
+      {#if data.envKeys.length === 0}<p class="meta">No exportable env keys.</p>{/if}
     </fieldset>
 
     <div class="actions">

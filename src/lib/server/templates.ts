@@ -16,6 +16,7 @@ export interface CouncilTemplate {
   councillors: TemplateCouncillor[];
   memory?: TemplateMemoryNote[];
   sample_jobs?: TemplateSampleJob[];
+  env?: TemplateEnvPair[];
 }
 
 export interface TemplateCouncillor {
@@ -39,6 +40,12 @@ export interface TemplateSampleJob {
   councillor_slug: string;
 }
 
+export interface TemplateEnvPair {
+  key: string;
+  value: string;
+  comment?: string;
+}
+
 // ---------- apply plan ----------
 
 export interface ApplyPlan {
@@ -46,6 +53,7 @@ export interface ApplyPlan {
   councillors: { add: string[]; overwrite: string[] };
   memory: { add: string[]; overwrite: string[] };
   sample_jobs: { add: number; skipped_because_jobs_exist: boolean };
+  env: { add: string[]; overwrite: string[] };
 }
 
 // ---------- errors ----------
@@ -136,6 +144,30 @@ function validateSampleJob(raw: unknown, path: string): TemplateSampleJob {
   };
 }
 
+const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const SECRET_KEY_RE = /key|api|token|secret|password|passwd|credential|auth|private/i;
+
+/** True if an env key's name looks like a secret and must never be exported. */
+export function isSecretEnvKey(key: string): boolean {
+  return SECRET_KEY_RE.test(key);
+}
+
+function validateEnvPair(raw: unknown, path: string): TemplateEnvPair {
+  if (!isObject(raw)) throw new TemplateValidationError(`${path} must be an object.`);
+  const key = requireString(raw, path, 'key');
+  if (!ENV_KEY_RE.test(key)) {
+    throw new TemplateValidationError(
+      `${path}.key ${JSON.stringify(key)} must match [A-Za-z_][A-Za-z0-9_]*.`
+    );
+  }
+  const value = requireString(raw, path, 'value');
+  if (/[\r\n]/.test(value)) {
+    throw new TemplateValidationError(`${path}.value must not contain a newline.`);
+  }
+  const comment = optionalString(raw, path, 'comment');
+  return { key, value, comment };
+}
+
 function derivedSlug(c: TemplateCouncillor): string {
   return c.slug?.trim() ? slugify(c.slug) : slugify(c.name);
 }
@@ -186,6 +218,19 @@ function validateTemplate(raw: unknown): CouncilTemplate {
     });
   }
 
+  let env: TemplateEnvPair[] | undefined;
+  if (raw.env !== undefined) {
+    if (!Array.isArray(raw.env)) throw new TemplateValidationError('template.env must be an array.');
+    env = raw.env.map((e, i) => validateEnvPair(e, `env[${i}]`));
+    const seen = new Set<string>();
+    for (const e of env) {
+      if (seen.has(e.key)) {
+        throw new TemplateValidationError(`duplicate env key ${JSON.stringify(e.key)} in template.env.`);
+      }
+      seen.add(e.key);
+    }
+  }
+
   return {
     format_version: 1,
     name,
@@ -196,7 +241,8 @@ function validateTemplate(raw: unknown): CouncilTemplate {
     council,
     councillors,
     memory,
-    sample_jobs
+    sample_jobs,
+    env
   };
 }
 
@@ -304,6 +350,7 @@ import { hasCouncil, createCouncil, updateCouncil, readCouncil } from './council
 import { listCouncillors, createCouncillor, updateCouncillor, readCouncillor } from './councillors';
 import { listNotes, createNote, updateNote, readNote } from './memory';
 import { listJobs, createJob, readJob } from './jobs';
+import { readCouncilEnv, writeCouncilEnv } from './env-file';
 
 function memoryNoteSlug(n: TemplateMemoryNote): string {
   return slugify(n.title);
@@ -337,11 +384,23 @@ export async function planApply(t: CouncilTemplate): Promise<ApplyPlan> {
     ? { add: 0, skipped_because_jobs_exist: true }
     : { add: sampleJobsRequested, skipped_because_jobs_exist: false };
 
+  // `.env` is independent of council.json — read it always so the overwrite
+  // gate is meaningful even when a .env exists without a council, and a
+  // pre-existing .env is never silently clobbered. readCouncilEnv() returns []
+  // when the file is missing.
+  const existingEnvKeys = new Set(readCouncilEnv().map((p) => p.key));
+  const envAdd: string[] = [];
+  const envOver: string[] = [];
+  for (const e of t.env ?? []) {
+    (existingEnvKeys.has(e.key) ? envOver : envAdd).push(e.key);
+  }
+
   return {
     council: { exists, willOverwrite: exists },
     councillors: { add: cAdd, overwrite: cOver },
     memory: { add: mAdd, overwrite: mOver },
-    sample_jobs
+    sample_jobs,
+    env: { add: envAdd, overwrite: envOver }
   };
 }
 
@@ -357,7 +416,8 @@ export async function applyTemplate(
   const needsConfirm =
     plan.council.willOverwrite ||
     plan.councillors.overwrite.length > 0 ||
-    plan.memory.overwrite.length > 0;
+    plan.memory.overwrite.length > 0 ||
+    plan.env.overwrite.length > 0;
   if (needsConfirm && !opts.confirmedOverwrite) {
     throw new TemplateNeedsConfirmation(plan);
   }
@@ -425,6 +485,24 @@ export async function applyTemplate(
     }
   }
 
+  // 5. Env defaults: merge template pairs into <councilRoot>/.env. Existing
+  //    keys are replaced in place (already confirmed via needsConfirm); new
+  //    keys are appended. `comment` is intentionally not written.
+  if (t.env && t.env.length > 0) {
+    const pairs = readCouncilEnv();
+    const index = new Map(pairs.map((p, i) => [p.key, i]));
+    for (const e of t.env) {
+      const at = index.get(e.key);
+      if (at === undefined) {
+        index.set(e.key, pairs.length);
+        pairs.push({ key: e.key, value: e.value });
+      } else {
+        pairs[at] = { key: e.key, value: e.value };
+      }
+    }
+    await writeCouncilEnv(pairs);
+  }
+
   return plan;
 }
 
@@ -441,10 +519,11 @@ export interface ExportSelection {
   councillor_slugs: string[];
   memory_slugs: string[];
   sample_job_ids: string[];
+  env_keys: string[];
 }
 
 export async function exportSelection(s: ExportSelection): Promise<CouncilTemplate> {
-  const current = await readCouncil();
+  const councilMeta = await readCouncil();
 
   const councillors: TemplateCouncillor[] = [];
   for (const slug of s.councillor_slugs) {
@@ -477,6 +556,20 @@ export async function exportSelection(s: ExportSelection): Promise<CouncilTempla
     });
   }
 
+  const env: TemplateEnvPair[] = [];
+  if (s.env_keys.length > 0) {
+    const current = new Map(readCouncilEnv().map((p) => [p.key, p.value]));
+    for (const key of s.env_keys) {
+      if (isSecretEnvKey(key)) {
+        throw new TemplateValidationError(
+          `Refusing to export env key ${JSON.stringify(key)}: matches a secret-name pattern.`
+        );
+      }
+      const value = current.get(key);
+      if (value !== undefined) env.push({ key, value });
+    }
+  }
+
   return {
     format_version: 1,
     name: s.council.name,
@@ -486,10 +579,11 @@ export async function exportSelection(s: ExportSelection): Promise<CouncilTempla
     license: s.council.license,
     council: {
       name: s.council.name,
-      description: s.council.description ?? (current.description || undefined)
+      description: s.council.description ?? (councilMeta.description || undefined)
     },
     councillors,
     memory: memory.length ? memory : undefined,
-    sample_jobs: sample_jobs.length ? sample_jobs : undefined
+    sample_jobs: sample_jobs.length ? sample_jobs : undefined,
+    env: env.length ? env : undefined
   };
 }
