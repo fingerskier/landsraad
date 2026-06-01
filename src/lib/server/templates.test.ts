@@ -445,7 +445,8 @@ describe('exportSelection', () => {
       council: { name: 'Exported', version: '0.1.0' },
       councillor_slugs: ['mocky'],
       memory_slugs: [],
-      sample_job_ids: []
+      sample_job_ids: [],
+      env_keys: []
     });
     expect(t.name).toBe('Exported');
     expect(t.councillors.map((c) => c.slug ?? slugify(c.name))).toEqual(['mocky']);
@@ -460,7 +461,8 @@ describe('exportSelection', () => {
       council: { name: 'Exported', version: '0.1.0' },
       councillor_slugs: ['mocky'],
       memory_slugs: [],
-      sample_job_ids: [sampleId]
+      sample_job_ids: [sampleId],
+      env_keys: []
     });
     expect(t.sample_jobs).toHaveLength(1);
     expect(t.sample_jobs?.[0].title).toBe('Sample');
@@ -472,7 +474,8 @@ describe('exportSelection', () => {
       council: { name: 'RT', version: '0.1.0', description: 'rt' },
       councillor_slugs: ['mocky', 'polly'],
       memory_slugs: ['house-rules'],
-      sample_job_ids: []
+      sample_job_ids: [],
+      env_keys: []
     });
     const json = JSON.stringify(exported);
 
@@ -497,9 +500,64 @@ describe('exportSelection', () => {
       council: { name: 'Exported', version: '0.1.0' },
       councillor_slugs: ['mocky', 'polly'],
       memory_slugs: ['house-rules'],
-      sample_job_ids: []
+      sample_job_ids: [],
+      env_keys: []
     });
     expect(JSON.stringify(exported)).not.toContain(SECRET);
     expect(JSON.stringify(exported)).not.toContain('OPENAI_API_KEY');
+  });
+
+  it('exports selected env keys with values', async () => {
+    const { writeCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([
+      { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+      { key: 'IGNORED', value: 'no' }
+    ]);
+    const out = await exportSelection({
+      council: { name: 'X', version: '1.0.0' },
+      councillor_slugs: [],
+      memory_slugs: [],
+      sample_job_ids: [],
+      env_keys: ['LANDSRAAD_MEETING_MODEL']
+    });
+    expect(out.env).toEqual([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]);
+  });
+
+  it('omits env when no env keys are selected', async () => {
+    const out = await exportSelection({
+      council: { name: 'X', version: '1.0.0' },
+      councillor_slugs: [],
+      memory_slugs: [],
+      sample_job_ids: [],
+      env_keys: []
+    });
+    expect(out.env).toBeUndefined();
+  });
+
+  it('refuses to export a secret-named env key', async () => {
+    const { writeCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([{ key: 'ANTHROPIC_API_KEY', value: 'sk-xxx' }]);
+    await expect(
+      exportSelection({
+        council: { name: 'X', version: '1.0.0' },
+        councillor_slugs: [],
+        memory_slugs: [],
+        sample_job_ids: [],
+        env_keys: ['ANTHROPIC_API_KEY']
+      })
+    ).rejects.toThrow(/ANTHROPIC_API_KEY/);
+  });
+
+  it('skips a selected env key that is not present in .env', async () => {
+    const { writeCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([{ key: 'PRESENT', value: 'yes' }]);
+    const out = await exportSelection({
+      council: { name: 'X', version: '1.0.0' },
+      councillor_slugs: [],
+      memory_slugs: [],
+      sample_job_ids: [],
+      env_keys: ['PRESENT', 'MISSING']
+    });
+    expect(out.env).toEqual([{ key: 'PRESENT', value: 'yes' }]);
   });
 });

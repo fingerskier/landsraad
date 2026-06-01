@@ -145,6 +145,7 @@ function validateSampleJob(raw: unknown, path: string): TemplateSampleJob {
 }
 
 const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const SECRET_KEY_RE = /key|api|token|secret|password|passwd|credential|auth|private/i;
 
 function validateEnvPair(raw: unknown, path: string): TemplateEnvPair {
   if (!isObject(raw)) throw new TemplateValidationError(`${path} must be an object.`);
@@ -513,10 +514,11 @@ export interface ExportSelection {
   councillor_slugs: string[];
   memory_slugs: string[];
   sample_job_ids: string[];
+  env_keys: string[];
 }
 
 export async function exportSelection(s: ExportSelection): Promise<CouncilTemplate> {
-  const current = await readCouncil();
+  const councilMeta = await readCouncil();
 
   const councillors: TemplateCouncillor[] = [];
   for (const slug of s.councillor_slugs) {
@@ -549,6 +551,20 @@ export async function exportSelection(s: ExportSelection): Promise<CouncilTempla
     });
   }
 
+  const env: TemplateEnvPair[] = [];
+  if (s.env_keys.length > 0) {
+    const current = new Map(readCouncilEnv().map((p) => [p.key, p.value]));
+    for (const key of s.env_keys) {
+      if (SECRET_KEY_RE.test(key)) {
+        throw new TemplateValidationError(
+          `Refusing to export env key ${JSON.stringify(key)}: matches a secret-name pattern.`
+        );
+      }
+      const value = current.get(key);
+      if (value !== undefined) env.push({ key, value });
+    }
+  }
+
   return {
     format_version: 1,
     name: s.council.name,
@@ -558,10 +574,11 @@ export async function exportSelection(s: ExportSelection): Promise<CouncilTempla
     license: s.council.license,
     council: {
       name: s.council.name,
-      description: s.council.description ?? (current.description || undefined)
+      description: s.council.description ?? (councilMeta.description || undefined)
     },
     councillors,
     memory: memory.length ? memory : undefined,
-    sample_jobs: sample_jobs.length ? sample_jobs : undefined
+    sample_jobs: sample_jobs.length ? sample_jobs : undefined,
+    env: env.length ? env : undefined
   };
 }

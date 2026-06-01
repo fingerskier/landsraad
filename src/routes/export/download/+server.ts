@@ -16,7 +16,8 @@ export const POST: RequestHandler = async ({ request }) => {
     council: { name, version, description, author, license },
     councillor_slugs,
     memory_slugs,
-    sample_job_ids
+    sample_job_ids,
+    env_keys: []
   });
   const body = JSON.stringify(template, null, 2) + '\n';
   const filename = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.template.json`;
