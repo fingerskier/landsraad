@@ -320,6 +320,49 @@ describe('applyTemplate (empty cwd)', () => {
     expect(jobs[0].title).toBe('Hello');
     expect(jobs[0].councillor_slug).toBe('mocky');
   });
+
+  it('seeds .env on a fresh council apply', async () => {
+    const { readCouncilEnv } = await import('./env-file');
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]
+    }));
+    await applyTemplate(t, { confirmedOverwrite: false });
+    expect(readCouncilEnv()).toEqual([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]);
+  });
+
+  it('requires confirmation when an env key would be overwritten', async () => {
+    const { writeCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'pro' }]);
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]
+    }));
+    await expect(applyTemplate(t, { confirmedOverwrite: false })).rejects.toBeInstanceOf(
+      TemplateNeedsConfirmation
+    );
+  });
+
+  it('overwrites in place and preserves unrelated user keys when confirmed', async () => {
+    const { writeCouncilEnv, readCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([
+      { key: 'USER_SECRET', value: 'keep-me' },
+      { key: 'LANDSRAAD_MEETING_MODEL', value: 'pro' }
+    ]);
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [
+        { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+        { key: 'LANDSRAAD_MEETING_TURN_NUDGE', value: 'Be terse.' }
+      ]
+    }));
+    await applyTemplate(t, { confirmedOverwrite: true });
+    expect(readCouncilEnv()).toEqual([
+      { key: 'USER_SECRET', value: 'keep-me' },
+      { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+      { key: 'LANDSRAAD_MEETING_TURN_NUDGE', value: 'Be terse.' }
+    ]);
+  });
 });
 
 describe('applyTemplate (existing council, conflicts)', () => {

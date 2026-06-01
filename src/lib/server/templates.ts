@@ -344,7 +344,7 @@ import { hasCouncil, createCouncil, updateCouncil, readCouncil } from './council
 import { listCouncillors, createCouncillor, updateCouncillor, readCouncillor } from './councillors';
 import { listNotes, createNote, updateNote, readNote } from './memory';
 import { listJobs, createJob, readJob } from './jobs';
-import { readCouncilEnv } from './env-file';
+import { readCouncilEnv, writeCouncilEnv } from './env-file';
 
 function memoryNoteSlug(n: TemplateMemoryNote): string {
   return slugify(n.title);
@@ -378,7 +378,11 @@ export async function planApply(t: CouncilTemplate): Promise<ApplyPlan> {
     ? { add: 0, skipped_because_jobs_exist: true }
     : { add: sampleJobsRequested, skipped_because_jobs_exist: false };
 
-  const existingEnvKeys = new Set(exists ? readCouncilEnv().map((p) => p.key) : []);
+  // `.env` is independent of council.json — read it always so the overwrite
+  // gate is meaningful even when a .env exists without a council, and a
+  // pre-existing .env is never silently clobbered. readCouncilEnv() returns []
+  // when the file is missing.
+  const existingEnvKeys = new Set(readCouncilEnv().map((p) => p.key));
   const envAdd: string[] = [];
   const envOver: string[] = [];
   for (const e of t.env ?? []) {
@@ -406,7 +410,8 @@ export async function applyTemplate(
   const needsConfirm =
     plan.council.willOverwrite ||
     plan.councillors.overwrite.length > 0 ||
-    plan.memory.overwrite.length > 0;
+    plan.memory.overwrite.length > 0 ||
+    plan.env.overwrite.length > 0;
   if (needsConfirm && !opts.confirmedOverwrite) {
     throw new TemplateNeedsConfirmation(plan);
   }
@@ -472,6 +477,24 @@ export async function applyTemplate(
         councillor_slug: j.councillor_slug
       });
     }
+  }
+
+  // 5. Env defaults: merge template pairs into <councilRoot>/.env. Existing
+  //    keys are replaced in place (already confirmed via needsConfirm); new
+  //    keys are appended. `comment` is intentionally not written.
+  if (t.env && t.env.length > 0) {
+    const pairs = readCouncilEnv();
+    const index = new Map(pairs.map((p, i) => [p.key, i]));
+    for (const e of t.env) {
+      const at = index.get(e.key);
+      if (at === undefined) {
+        index.set(e.key, pairs.length);
+        pairs.push({ key: e.key, value: e.value });
+      } else {
+        pairs[at] = { key: e.key, value: e.value };
+      }
+    }
+    await writeCouncilEnv(pairs);
   }
 
   return plan;
