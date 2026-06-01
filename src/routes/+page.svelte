@@ -54,6 +54,7 @@
     </div>
     <div class="head-actions">
       <Button href="/jobs/new" variant="primary">+ New job</Button>
+      <Button href="/meetings/new" variant="primary">+ New meeting</Button>
       <Button href="/council">Council settings</Button>
     </div>
   </header>
@@ -133,10 +134,6 @@
   <section>
     <div class="section-head">
       <h2>Councillors</h2>
-      <div class="head-actions">
-        <Button href="/meetings/new">+ New meeting</Button>
-        <Button href="/jobs/new?for=__all__">+ Job for all</Button>
-      </div>
     </div>
 
     {#if c.councillors.length === 0}
@@ -222,9 +219,8 @@
   .desc { color: var(--fg); margin: 0.25rem 0 0; }
   .meta { color: var(--muted); margin: 0.5rem 0 0; font-size: 0.9em; }
   .head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; }
-  .head-actions { display: flex; gap: 0.5rem; align-items: center; }
+  .head-actions { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
   .section-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-  .head-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
   h2 { margin: 0; font-size: 1.15rem; }
   .panel { margin-top: 2.5rem; }
 
