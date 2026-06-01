@@ -2,20 +2,12 @@
   import '../app.css';
   import { page } from '$app/state';
   import { afterNavigate } from '$app/navigation';
-  import { Badge, Button } from '$lib/components';
+  import { Button } from '$lib/components';
   let { children } = $props();
 
   let title = $derived(page.data?.councilName ? `${page.data.councilName} — Landsraad` : 'Landsraad');
   const hasCouncil = $derived(page.data?.hasCouncil ?? false);
   const nav = $derived(page.data?.nav ?? { proposals: 0, meetings: 0, running: 0, failed: 0 });
-  const path = $derived(page.url.pathname);
-
-  // A nav entry is active for its own page and anything nested under it
-  // (except Home, which only lights up on the exact root).
-  function isActive(href: string): boolean {
-    if (href === '/') return path === '/';
-    return path === href || path.startsWith(href + '/');
-  }
 
   type Item = { href: string; label: string; count?: number };
   const items = $derived<Item[]>([
@@ -28,6 +20,21 @@
     { href: '/council', label: 'Council' }
   ]);
 
+  // Glanceable status, shown only when non-zero. Navigation lives in the menu;
+  // this cluster is a pure attention signal (failures/proposals first), so a
+  // power user knows what needs them without opening anything.
+  type Att = { n: number; label: string; tone: 'fail' | 'prop' | 'run' | 'meet' };
+  const attention = $derived<Att[]>(
+    (
+      [
+        { n: nav.failed, label: 'failed', tone: 'fail' },
+        { n: nav.proposals, label: nav.proposals === 1 ? 'proposal' : 'proposals', tone: 'prop' },
+        { n: nav.running, label: 'running', tone: 'run' },
+        { n: nav.meetings, label: nav.meetings === 1 ? 'meeting' : 'meetings', tone: 'meet' }
+      ] as Att[]
+    ).filter((a) => a.n > 0)
+  );
+
   let menuOpen = $state(false);
   afterNavigate(() => { menuOpen = false; });
 </script>
@@ -39,16 +46,12 @@
 <header>
   <a href="/" class="brand">Landsraad</a>
 
-  {#if hasCouncil}
-    <nav class="primary" aria-label="Primary">
-      {#each items as item (item.href)}
-        <a href={item.href} class="nav-link" class:active={isActive(item.href)}
-           aria-current={isActive(item.href) ? 'page' : undefined}>
-          {item.label}
-          {#if item.count}<Badge tone="count">{item.count}</Badge>{/if}
-        </a>
+  {#if hasCouncil && attention.length}
+    <div class="attention" aria-label="Needs attention">
+      {#each attention as a (a.label)}
+        <span class="att {a.tone}">{a.n}&nbsp;{a.label}</span>
       {/each}
-    </nav>
+    </div>
   {/if}
 
   <div class="right">
@@ -104,28 +107,35 @@
     letter-spacing: 0.04em;
     flex-shrink: 0;
   }
-  .primary {
+  .attention {
     display: flex;
     align-items: center;
-    gap: 0.15rem;
+    gap: 0.55rem;
     flex: 1;
+    justify-content: flex-end;
     overflow-x: auto;
     scrollbar-width: thin;
   }
-  .nav-link {
+  .att {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.4rem 0.7rem;
-    border-radius: var(--radius);
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 0.92em;
+    font-size: 0.82em;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    border: 1px solid transparent;
+    color: var(--muted);
   }
-  .nav-link:hover { color: var(--fg); background: var(--surface-1); }
-  .nav-link.active { color: var(--accent); background: var(--accent-soft); }
+  .att::before {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    margin-right: 0.35rem;
+    background: currentColor;
+  }
+  .att.fail { color: var(--danger); }
+  .att.prop { color: var(--accent); }
+  .att.run { color: var(--info); }
+  .att.meet { color: var(--muted); }
 
   .right { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; flex-shrink: 0; }
 
@@ -190,9 +200,8 @@
     padding: 2rem 1.5rem 4rem;
   }
 
-  /* Collapse the inline nav on narrow viewports; the hamburger covers it. */
+  /* Hide the New job button on narrow viewports; the hamburger covers nav. */
   @media (max-width: 820px) {
-    .primary { display: none; }
     .new-job { display: none; }
   }
 </style>
