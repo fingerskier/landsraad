@@ -112,6 +112,8 @@ Prompt assembly is top-K semantic retrieval against the sqlite-vec index — `ME
 
 After a job transitions to `succeeded`, the runner makes one extra adapter call to the same councillor with a fixed reflection prompt (`src/lib/server/reflection.ts`). The prompt includes the job's `transcript.md` + `output.md` and asks for zero or more agent → host blocks (see [Agent Proposals](#agent-proposals)). Reflection is opt-out per councillor (`councillor.json` `reflect: boolean`, default `true`). Failed/cancelled jobs skip reflection. Reflection failure is non-fatal; it appends a `reflection_failed` event and leaves the job `succeeded`.
 
+Reflection runs while the job already reads `succeeded` but still holds the councillor lock, so the dashboard lane shows that councillor as **reflecting** (distinct from `busy`) until it finishes. The reflection call is time-bounded so a hung or slow model can't pin a councillor indefinitely; on timeout it logs `reflection_failed` ("reflection timed out…") and releases the lock. Override the budget with `LANDSRAAD_REFLECT_TIMEOUT_MS` (default `120000`).
+
 ### Agent Proposals
 
 Reflection (and, eventually, any adapter response slot the host chooses to scan) parses fenced blocks of the form:

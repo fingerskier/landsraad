@@ -162,6 +162,38 @@ function makeReflectionAdapter(reflectionOutput: string) {
   return { id: 'mock:reflect', kind: 'mock' as const, run };
 }
 
+// Job call succeeds normally; the reflection call (2nd) hangs until its signal
+// aborts, then resolves — mimicking a real CLI child that exits on abort. Lets us
+// exercise the reflection timeout/cancel paths without a real subprocess.
+function makeReflectThenHangAdapter() {
+  let call = 0;
+  const run = (args: { prompt: string; cwd: string; signal?: AbortSignal }): AdapterRunStreams => {
+    call++;
+    if (call === 1) {
+      async function* chunks() {
+        yield { stream: 'stdout' as const, text: 'job output body' };
+      }
+      return { chunks: chunks(), result: Promise.resolve({ exit_code: 0, stdout: 'job output body', stderr: '' }) };
+    }
+    const { signal } = args;
+    async function* chunks() {
+      await new Promise<void>((res) => {
+        if (signal?.aborted) return res();
+        signal?.addEventListener('abort', () => res(), { once: true });
+      });
+    }
+    return {
+      chunks: chunks(),
+      result: new Promise((resolve) => {
+        const fin = () => resolve({ exit_code: 124, stdout: '', stderr: 'aborted' });
+        if (signal?.aborted) fin();
+        else signal?.addEventListener('abort', fin, { once: true });
+      })
+    };
+  };
+  return { id: 'mock:reflect-hang', kind: 'mock' as const, run };
+}
+
 function makeFailingAdapter() {
   const run = (_args: { prompt: string; cwd: string; signal?: AbortSignal }): AdapterRunStreams => {
     async function* chunks() {
@@ -302,6 +334,49 @@ describe('runner reflection', () => {
     const final = await readJob(job.id);
     expect(final.memory_slugs).toEqual(['private-lesson']);
     expect(final.shared_memory_slugs).toEqual(['council-rule']);
+  });
+
+  it('times out a hung reflection so the councillor is freed (job stays succeeded)', async () => {
+    env.LANDSRAAD_REFLECT_TIMEOUT_MS = '50';
+    try {
+      const adapterOverride = makeReflectThenHangAdapter();
+      const job = await createJob({ title: 'Hang', brief: 'b', councillor_slug: 'alice' });
+      await runJobNow(job.id, { adapterOverride });
+      const finished = await readJob(job.id);
+      expect(finished.status).toBe('succeeded');
+      // The run must be cleared even though reflection hung — councillor freed.
+      expect(currentRuns().some((r) => r.jobId === job.id)).toBe(false);
+      const events = await readEvents(job.id);
+      const failed = events.find((e) => e.type === 'reflection_failed');
+      expect(failed).toBeTruthy();
+      expect(failed?.message).toMatch(/timed out/i);
+    } finally {
+      delete env.LANDSRAAD_REFLECT_TIMEOUT_MS;
+    }
+  });
+
+  it('reports a reflecting phase in currentRuns while reflection runs', async () => {
+    env.LANDSRAAD_REFLECT_TIMEOUT_MS = '5000';
+    try {
+      const adapterOverride = makeReflectThenHangAdapter();
+      const job = await createJob({ title: 'Phase', brief: 'b', councillor_slug: 'alice' });
+      const p = runJobNow(job.id, { adapterOverride });
+      const deadline = Date.now() + 3000;
+      let sawReflecting = false;
+      while (Date.now() < deadline) {
+        const r = currentRuns().find((x) => x.jobId === job.id);
+        if (r?.phase === 'reflecting') {
+          sawReflecting = true;
+          break;
+        }
+        await new Promise((res) => setTimeout(res, 10));
+      }
+      expect(sawReflecting).toBe(true);
+      await cancelJob(job.id); // unhang the reflection so the test finishes fast
+      await p;
+    } finally {
+      delete env.LANDSRAAD_REFLECT_TIMEOUT_MS;
+    }
   });
 
   it('treats unknown scope value as private', async () => {

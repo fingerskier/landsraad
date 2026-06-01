@@ -1,3 +1,4 @@
+import { env } from 'node:process';
 import { readCouncillor } from './councillors';
 import { councilRoot } from './paths';
 import { assembleContextFor } from './context';
@@ -24,20 +25,36 @@ import {
 } from './councillor-lock';
 import type { Job } from '$lib/types';
 
+type RunPhase = 'running' | 'reflecting';
+
 interface ActiveRun {
   jobId: string;
   councillorSlug: string;
   controller: AbortController;
+  phase: RunPhase;
 }
 
 // keyed by jobId (not councillor slug)
 const runs = new Map<string, ActiveRun>();
 const pendingCancels = new Set<string>();
 
-export function currentRuns(): Array<{ councillor: string; jobId: string }> {
-  const out: Array<{ councillor: string; jobId: string }> = [];
-  for (const run of runs.values()) out.push({ councillor: run.councillorSlug, jobId: run.jobId });
+export function currentRuns(): Array<{ councillor: string; jobId: string; phase: RunPhase }> {
+  const out: Array<{ councillor: string; jobId: string; phase: RunPhase }> = [];
+  for (const run of runs.values())
+    out.push({ councillor: run.councillorSlug, jobId: run.jobId, phase: run.phase });
   return out;
+}
+
+/**
+ * Reflection budget. Reflection runs after a job is already marked `succeeded`
+ * but while the run still holds the councillor lock + `runs` entry (so the lane
+ * reads busy/reflecting). A hung reflection must never pin a councillor forever,
+ * so the reflection adapter call is bounded. Override via
+ * `LANDSRAAD_REFLECT_TIMEOUT_MS`; defaults to 2 minutes.
+ */
+function reflectTimeoutMs(): number {
+  const raw = Number(env.LANDSRAAD_REFLECT_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 120_000;
 }
 
 export function isRunning(councillorSlug: string): boolean {
@@ -75,28 +92,38 @@ async function reflectAfterSuccess(
     output
   });
 
-  let reflectionOut = '';
-  try {
-    const streams = adapter.run({ prompt, cwd: councilRoot(), signal });
-    for await (const _chunk of streams.chunks) void _chunk;
-    const result = await streams.result;
-    if (result.exit_code !== 0) {
-      await appendEvent(job.id, {
-        at: new Date().toISOString(),
-        type: 'reflection_failed',
-        message: result.stderr || `exit ${result.exit_code}`
-      });
-      return;
+  // Bounded so a hung/slow reflection can't keep the councillor pinned busy after
+  // the job already succeeded. runAdapter aborts the adapter on timeout and never
+  // throws — it reports the outcome via timedOut/exit_code.
+  const timeoutMs = reflectTimeoutMs();
+  let stderrAccum = '';
+  const res = await runAdapter({
+    adapter,
+    prompt,
+    cwd: councilRoot(),
+    timeoutMs,
+    abortSignal: signal,
+    onStderr: (text) => {
+      stderrAccum += text;
     }
-    reflectionOut = result.stdout;
-  } catch (err) {
+  });
+  if (res.timedOut) {
     await appendEvent(job.id, {
       at: new Date().toISOString(),
       type: 'reflection_failed',
-      message: err instanceof Error ? err.message : String(err)
+      message: `reflection timed out after ${timeoutMs}ms`
     });
     return;
   }
+  if (res.exit_code !== 0) {
+    await appendEvent(job.id, {
+      at: new Date().toISOString(),
+      type: 'reflection_failed',
+      message: stderrAccum.trim() || `exit ${res.exit_code}`
+    });
+    return;
+  }
+  const reflectionOut = res.output;
 
   const apply = await applyReflectionBlocks({
     text: reflectionOut,
@@ -173,7 +200,7 @@ export async function runJobNow(jobId: string, opts: RunOptions = {}): Promise<J
   // already been consumed above and is never re-checked — and the abort would be lost,
   // letting the job run to 'succeeded'. No awaits between consuming pendingCancels
   // and runs.set() means there is no dead window.
-  runs.set(jobId, { jobId, councillorSlug: councillor.slug, controller });
+  runs.set(jobId, { jobId, councillorSlug: councillor.slug, controller, phase: 'running' });
 
   const promise = (async (): Promise<Job> => {
     try {
@@ -233,6 +260,11 @@ export async function runJobNow(jobId: string, opts: RunOptions = {}): Promise<J
           finished_at: new Date().toISOString(),
           exit_code: 0
         });
+        // Job is done; the lingering busy window is now reflection. Surface it as a
+        // distinct phase so the lane can read "reflecting" rather than a bare "busy"
+        // that contradicts the Succeeded status.
+        const active = runs.get(jobId);
+        if (active) active.phase = 'reflecting';
         try {
           await reflectAfterSuccess(succeeded, councillor, adapter, controller.signal);
         } catch (err) {

@@ -31,7 +31,13 @@ export const load: PageServerLoad = async () => {
   const activeMeetingsCount = meetings.filter(
     (m) => !['ended', 'cancelled', 'failed'].includes(m.status)
   ).length;
-  const running = new Set(currentRuns().map((r) => r.councillor));
+  const runsNow = currentRuns();
+  const running = new Set(runsNow.map((r) => r.councillor));
+  // Councillors whose only remaining work is post-success reflection: the job
+  // already reads Succeeded, so the lane shows "reflecting" instead of "busy".
+  const reflecting = new Set(
+    runsNow.filter((r) => r.phase === 'reflecting').map((r) => r.councillor)
+  );
   const recentByCouncillor: Record<string, Job[]> = {};
   const perCouncillor: Record<string, { running: number; queued: number; failed: number }> = {};
   for (const c of council.councillors) {
@@ -73,6 +79,7 @@ export const load: PageServerLoad = async () => {
     perCouncillor,
     stats,
     running: Array.from(running),
+    reflecting: Array.from(reflecting),
     pendingProposalCount: pendingProposals.length,
     schedules,
     meetingsTotal: meetings.length,

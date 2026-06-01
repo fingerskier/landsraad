@@ -37,6 +37,7 @@
   {@const c = data.council}
   {@const notes = data.notes}
   {@const running = new Set(data.running)}
+  {@const reflecting = new Set(data.reflecting)}
   {@const recent = data.recentByCouncillor}
   {@const pc = data.perCouncillor}
   {@const sched = data.schedules}
@@ -144,6 +145,7 @@
         {#each c.councillors as cl (cl.slug)}
           {@const jobs = recent[cl.slug] ?? []}
           {@const counts = pc[cl.slug] ?? { running: 0, queued: 0, failed: 0 }}
+          {@const isReflecting = reflecting.has(cl.slug)}
           {@const busy = running.has(cl.slug) || counts.running > 0}
           <div class="lane">
             <div class="lane-head">
@@ -152,7 +154,7 @@
                 <Button href="/jobs/new?for={cl.slug}" variant="icon" ariaLabel="New job for {cl.name}" title="New job for {cl.name}">+</Button>
               </div>
               <div class="lane-sub">
-                <span class="ready" class:busy>{busy ? 'busy' : 'ready'}</span>
+                <span class="ready" class:busy>{isReflecting ? 'reflecting' : busy ? 'busy' : 'ready'}</span>
                 <span>{cl.role || 'no role'}</span>
                 {#if cl.adapter}<Badge mono>{cl.adapter}</Badge>{/if}
               </div>
