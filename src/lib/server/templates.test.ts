@@ -236,6 +236,30 @@ describe('planApply', () => {
     expect(plan.memory.overwrite).toEqual(['house-rules']);
     expect(plan.memory.add).toEqual([]);
   });
+
+  it('plans env adds on a fresh council', async () => {
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]
+    }));
+    const plan = await planApply(t);
+    expect(plan.env).toEqual({ add: ['LANDSRAAD_MEETING_MODEL'], overwrite: [] });
+  });
+
+  it('plans env overwrite when the key already exists in .env', async () => {
+    await createCouncil({ name: 'Existing' });
+    await writeCouncilEnv([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'pro' }]);
+    const t = parseTemplate(JSON.stringify({
+      ...validTemplate,
+      env: [
+        { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+        { key: 'NEW_KEY', value: 'x' }
+      ]
+    }));
+    const plan = await planApply(t);
+    expect(plan.env.overwrite).toEqual(['LANDSRAAD_MEETING_MODEL']);
+    expect(plan.env.add).toEqual(['NEW_KEY']);
+  });
 });
 
 import { readCouncil, updateCouncil } from './councils';

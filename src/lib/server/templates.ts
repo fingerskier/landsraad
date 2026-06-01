@@ -53,6 +53,7 @@ export interface ApplyPlan {
   councillors: { add: string[]; overwrite: string[] };
   memory: { add: string[]; overwrite: string[] };
   sample_jobs: { add: number; skipped_because_jobs_exist: boolean };
+  env: { add: string[]; overwrite: string[] };
 }
 
 // ---------- errors ----------
@@ -343,6 +344,7 @@ import { hasCouncil, createCouncil, updateCouncil, readCouncil } from './council
 import { listCouncillors, createCouncillor, updateCouncillor, readCouncillor } from './councillors';
 import { listNotes, createNote, updateNote, readNote } from './memory';
 import { listJobs, createJob, readJob } from './jobs';
+import { readCouncilEnv } from './env-file';
 
 function memoryNoteSlug(n: TemplateMemoryNote): string {
   return slugify(n.title);
@@ -376,11 +378,19 @@ export async function planApply(t: CouncilTemplate): Promise<ApplyPlan> {
     ? { add: 0, skipped_because_jobs_exist: true }
     : { add: sampleJobsRequested, skipped_because_jobs_exist: false };
 
+  const existingEnvKeys = new Set(exists ? readCouncilEnv().map((p) => p.key) : []);
+  const envAdd: string[] = [];
+  const envOver: string[] = [];
+  for (const e of t.env ?? []) {
+    (existingEnvKeys.has(e.key) ? envOver : envAdd).push(e.key);
+  }
+
   return {
     council: { exists, willOverwrite: exists },
     councillors: { add: cAdd, overwrite: cOver },
     memory: { add: mAdd, overwrite: mOver },
-    sample_jobs
+    sample_jobs,
+    env: { add: envAdd, overwrite: envOver }
   };
 }
 
