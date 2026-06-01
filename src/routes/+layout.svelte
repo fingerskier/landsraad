@@ -2,7 +2,6 @@
   import '../app.css';
   import { page } from '$app/state';
   import { afterNavigate } from '$app/navigation';
-  import { Button } from '$lib/components';
   let { children } = $props();
 
   let title = $derived(page.data?.councilName ? `${page.data.councilName} — Landsraad` : 'Landsraad');
@@ -55,9 +54,6 @@
   {/if}
 
   <div class="right">
-    {#if hasCouncil}
-      <div class="new-job"><Button href="/jobs/new" variant="primary">+ New job</Button></div>
-    {/if}
     <div class="menu">
       <button
         type="button"
@@ -91,10 +87,12 @@
 
 <style>
   header {
+    position: relative;
     border-bottom: 1px solid var(--border);
     padding: 0.75rem 1.5rem;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 1.25rem;
   }
   .brand {
@@ -104,12 +102,15 @@
     letter-spacing: 0.04em;
     flex-shrink: 0;
   }
+  /* Centered in the header regardless of brand/menu widths. */
   .attention {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
     gap: 0.55rem;
-    flex: 1;
-    justify-content: flex-end;
+    max-width: 60%;
     overflow-x: auto;
     scrollbar-width: thin;
   }
@@ -199,10 +200,5 @@
     max-width: 1100px;
     margin: 0 auto;
     padding: 2rem 1.5rem 4rem;
-  }
-
-  /* Hide the New job button on narrow viewports; the hamburger covers nav. */
-  @media (max-width: 820px) {
-    .new-job { display: none; }
   }
 </style>
