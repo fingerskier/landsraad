@@ -16,6 +16,7 @@ export interface CouncilTemplate {
   councillors: TemplateCouncillor[];
   memory?: TemplateMemoryNote[];
   sample_jobs?: TemplateSampleJob[];
+  env?: TemplateEnvPair[];
 }
 
 export interface TemplateCouncillor {
@@ -37,6 +38,12 @@ export interface TemplateSampleJob {
   title: string;
   brief: string;
   councillor_slug: string;
+}
+
+export interface TemplateEnvPair {
+  key: string;
+  value: string;
+  comment?: string;
 }
 
 // ---------- apply plan ----------
@@ -136,6 +143,24 @@ function validateSampleJob(raw: unknown, path: string): TemplateSampleJob {
   };
 }
 
+const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function validateEnvPair(raw: unknown, path: string): TemplateEnvPair {
+  if (!isObject(raw)) throw new TemplateValidationError(`${path} must be an object.`);
+  const key = requireString(raw, path, 'key');
+  if (!ENV_KEY_RE.test(key)) {
+    throw new TemplateValidationError(
+      `${path}.key ${JSON.stringify(key)} must match [A-Za-z_][A-Za-z0-9_]*.`
+    );
+  }
+  const value = requireString(raw, path, 'value');
+  if (/[\r\n]/.test(value)) {
+    throw new TemplateValidationError(`${path}.value must not contain a newline.`);
+  }
+  const comment = optionalString(raw, path, 'comment');
+  return { key, value, comment };
+}
+
 function derivedSlug(c: TemplateCouncillor): string {
   return c.slug?.trim() ? slugify(c.slug) : slugify(c.name);
 }
@@ -186,6 +211,19 @@ function validateTemplate(raw: unknown): CouncilTemplate {
     });
   }
 
+  let env: TemplateEnvPair[] | undefined;
+  if (raw.env !== undefined) {
+    if (!Array.isArray(raw.env)) throw new TemplateValidationError('template.env must be an array.');
+    env = raw.env.map((e, i) => validateEnvPair(e, `env[${i}]`));
+    const seen = new Set<string>();
+    for (const e of env) {
+      if (seen.has(e.key)) {
+        throw new TemplateValidationError(`duplicate env key ${JSON.stringify(e.key)} in template.env.`);
+      }
+      seen.add(e.key);
+    }
+  }
+
   return {
     format_version: 1,
     name,
@@ -196,7 +234,8 @@ function validateTemplate(raw: unknown): CouncilTemplate {
     council,
     councillors,
     memory,
-    sample_jobs
+    sample_jobs,
+    env
   };
 }
 

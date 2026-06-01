@@ -75,6 +75,42 @@ describe('parseTemplate', () => {
     const bad = { ...validTemplate, name: undefined };
     expect(() => parseTemplate(JSON.stringify(bad))).toThrow(TemplateValidationError);
   });
+
+  it('parses an env block', () => {
+    const good = {
+      ...validTemplate,
+      env: [
+        { key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' },
+        { key: 'LANDSRAAD_MEETING_TURN_NUDGE', value: 'Be terse — 1-3 sentences.', comment: 'shorter turns' }
+      ]
+    };
+    const t = parseTemplate(JSON.stringify(good));
+    expect(t.env).toHaveLength(2);
+    expect(t.env?.[0]).toEqual({ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite', comment: undefined });
+  });
+
+  it('rejects env that is not an array', () => {
+    const bad = { ...validTemplate, env: { LANDSRAAD_MEETING_MODEL: 'lite' } };
+    expect(() => parseTemplate(JSON.stringify(bad))).toThrow(/env must be an array/);
+  });
+
+  it('rejects an env key that is not a valid env identifier', () => {
+    const bad = { ...validTemplate, env: [{ key: '1BAD-KEY', value: 'x' }] };
+    expect(() => parseTemplate(JSON.stringify(bad))).toThrow(/env\[0\]\.key/);
+  });
+
+  it('rejects an env value containing a newline', () => {
+    const bad = { ...validTemplate, env: [{ key: 'OK_KEY', value: 'a\nb' }] };
+    expect(() => parseTemplate(JSON.stringify(bad))).toThrow(/env\[0\]\.value/);
+  });
+
+  it('rejects duplicate env keys', () => {
+    const bad = {
+      ...validTemplate,
+      env: [{ key: 'DUP', value: 'a' }, { key: 'DUP', value: 'b' }]
+    };
+    expect(() => parseTemplate(JSON.stringify(bad))).toThrow(/duplicate env key "DUP"/);
+  });
 });
 
 import { afterEach, beforeEach, vi } from 'vitest';
