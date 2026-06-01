@@ -77,9 +77,6 @@
             {#each items.slice(1) as item (item.href)}
               <a href={item.href}>{item.label}{#if item.count} ({item.count}){/if}</a>
             {/each}
-            <span class="links-group">Council</span>
-            <a href="/import">Install template</a>
-            <a href="/export">Export…</a>
           {/if}
           <a href="/help">Help</a>
         </nav>

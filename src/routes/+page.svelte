@@ -55,7 +55,6 @@
     <div class="head-actions">
       <Button href="/jobs/new" variant="primary">+ New job</Button>
       <Button href="/meetings/new" variant="primary">+ New meeting</Button>
-      <Button href="/council">Council settings</Button>
     </div>
   </header>
 
