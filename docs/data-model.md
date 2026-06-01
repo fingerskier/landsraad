@@ -218,7 +218,7 @@ Top-level fields of a council template file:
 - `councillors` — array of `{ slug?, name, role, routing_hint?, adapter, persona, reflect? }`. At least one required.
 - `memory?` — array of `{ title, body }` shared memory notes seeded on install.
 - `sample_jobs?` — array of `{ title, brief, councillor_slug }` queued only when the council's `jobs/` directory is empty.
-- `env?` — array of `{ key, value, comment? }`. Optional default environment variables seeded into the council `.env` on install. Keys must be valid env identifiers (`^[A-Za-z_][A-Za-z0-9_]*$`); values are single-line. `comment` documents the key in the template only (not written to `.env`). Export refuses secret-named keys (`key`, `api`, `token`, `secret`, `password`, `credential`, `auth`, `private`).
+- `env?` — array of `{ key, value, comment? }`. Optional default environment variables seeded into the council `.env` on install. Keys must be valid env identifiers (`^[A-Za-z_][A-Za-z0-9_]*$`); values are single-line. `comment` documents the key in the template only (not written to `.env`). Export refuses secret-named keys (`key`, `api`, `token`, `secret`, `password`, `passwd`, `credential`, `auth`, `private`).
 
 ## Invariants
 

@@ -493,6 +493,29 @@ describe('exportSelection', () => {
     }
   });
 
+  it('round-trip: export env -> load -> apply seeds .env in fresh cwd', async () => {
+    const { writeCouncilEnv, readCouncilEnv } = await import('./env-file');
+    await writeCouncilEnv([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]);
+    const exported = await exportSelection({
+      council: { name: 'RTE', version: '0.1.0' },
+      councillor_slugs: ['mocky'],
+      memory_slugs: [],
+      sample_job_ids: [],
+      env_keys: ['LANDSRAAD_MEETING_MODEL']
+    });
+    const json = JSON.stringify(exported);
+
+    const freshRoot = mkdtempSync(join(tmpdir(), 'ex-fresh-env-'));
+    process.env.LANDSRAAD_COUNCIL_ROOT = freshRoot;
+    try {
+      const reparsed = parseTemplate(json);
+      await applyTemplate(reparsed, { confirmedOverwrite: false });
+      expect(readCouncilEnv()).toEqual([{ key: 'LANDSRAAD_MEETING_MODEL', value: 'lite' }]);
+    } finally {
+      rmSync(freshRoot, { recursive: true, force: true });
+    }
+  });
+
   it('never leaks a council .env secret into the export bundle', async () => {
     const SECRET = 'sk-super-secret-do-not-leak';
     await writeCouncilEnv([{ key: 'OPENAI_API_KEY', value: SECRET }]);
