@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import { Button, StatusBadge, Badge, Markdown } from '$lib/components';
+  import { attendeeRoundStatuses, type AttendeeRoundStatus } from '$lib/meeting-status';
   let { data, form } = $props();
   const m = $derived(data.meeting);
 
@@ -27,6 +28,46 @@
   const isRemote = (token: string) => token.includes(':');
   const prettySpeaker = (token: string) => (isRemote(token) ? token.replace(':', ' › ') : token);
   const offline = $derived(new Set<string>(data.offlineRemotes ?? []));
+
+  // Per-attendee status for the latest round: green = spoke, yellow = waiting to
+  // speak, red = errored this round. Derived from the event log (see meeting-status).
+  type RosterEntry = {
+    token: string;
+    label: string;
+    remote: boolean;
+    offline: boolean;
+    state: AttendeeRoundStatus;
+  };
+  const STATE_TITLE: Record<AttendeeRoundStatus, string> = {
+    spoke: 'spoke this round',
+    pending: 'waiting to speak this round',
+    error: 'errored this round'
+  };
+  const roster = $derived.by<RosterEntry[]>(() => {
+    const tokens = [
+      ...m.attendees,
+      ...(m.remote_attendees ?? []).map((r) => `${r.council_slug}:${r.councillor_slug}`)
+    ];
+    const statuses = attendeeRoundStatuses(data.events ?? [], tokens);
+    const entries: RosterEntry[] = m.attendees.map((a) => ({
+      token: a,
+      label: a,
+      remote: false,
+      offline: false,
+      state: statuses.get(a) ?? 'pending'
+    }));
+    for (const r of m.remote_attendees ?? []) {
+      const token = `${r.council_slug}:${r.councillor_slug}`;
+      entries.push({
+        token,
+        label: `${r.council_slug} › ${r.councillor_slug}`,
+        remote: true,
+        offline: offline.has(token),
+        state: statuses.get(token) ?? 'pending'
+      });
+    }
+    return entries;
+  });
 
   type NextUp = { label: string; sub: string } | null;
   function computeNext(meeting: typeof m): NextUp {
@@ -90,12 +131,14 @@
   <div class="roster">
     <dt>Attendees</dt>
     <dd>
-      {#each m.attendees as a}<Badge>{a}</Badge>{/each}
-      {#each m.remote_attendees ?? [] as r}
-        {@const off = offline.has(`${r.council_slug}:${r.councillor_slug}`)}
-        <Badge tone="info" title={off ? 'offline' : 'remote'}>
-          {r.council_slug} › {r.councillor_slug}{#if off} ·offline{/if}
-        </Badge>
+      {#each roster as a (a.token)}
+        <span
+          class="attendee {a.state}"
+          class:remote={a.remote}
+          title="{STATE_TITLE[a.state]}{a.offline ? ' · offline' : ''}"
+        >
+          {a.label}{#if a.offline} ·offline{/if}
+        </span>
       {/each}
     </dd>
   </div>
@@ -203,6 +246,37 @@
   .meta-grid dd { margin: 0.2rem 0 0; }
   .roster { grid-column: 1 / -1; }
   .roster dd { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+  /* Attendee chips carry a round-status colour: green = spoke this round,
+     yellow = waiting to speak, red = errored this round. */
+  .attendee {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.1rem 0.55rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--fg);
+    font-size: 0.8em;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .attendee::before {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  .attendee.remote { font-style: italic; }
+  .attendee.spoke { border-color: var(--ok); background: rgba(139, 185, 139, 0.12); }
+  .attendee.spoke::before { background: var(--ok); }
+  .attendee.pending { border-color: var(--warn); background: rgba(224, 181, 98, 0.1); }
+  .attendee.pending::before { background: var(--warn); }
+  .attendee.error { border-color: var(--danger); background: var(--danger-soft); }
+  .attendee.error::before { background: var(--danger); }
 
   .next-up {
     margin: 0 0 1.25rem;
