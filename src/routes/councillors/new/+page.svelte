@@ -6,7 +6,7 @@
   const initialAdapter = $derived(form?.adapter ?? '');
 </script>
 
-<PageHeader title="New councillor" back="/council" backLabel="Back to council" />
+<PageHeader title="New councillor" back="/council" />
 
 <form method="POST" class="form">
   {#if form?.error}<div class="alert error">{form.error}</div>{/if}

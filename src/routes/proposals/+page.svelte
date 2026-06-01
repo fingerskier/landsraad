@@ -15,7 +15,7 @@
   const pendingCount = $derived(data.counts.pending);
 </script>
 
-<PageHeader title="Proposed jobs" back="/" backLabel="Back to council">
+<PageHeader title="Proposed jobs" back="/">
   {#snippet subtitle()}
     {pendingCount} pending · review and triage suggested follow-up work
   {/snippet}

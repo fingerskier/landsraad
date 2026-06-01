@@ -21,7 +21,7 @@
   });
 </script>
 
-<PageHeader title={c.name} back="/" backLabel="Back to council">
+<PageHeader title={c.name} back="/">
   {#snippet subtitle()}
     Role: <strong>{c.role}</strong>
     {#if currentAdapter}· <Badge mono>{currentAdapter}</Badge>{/if}

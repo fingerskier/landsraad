@@ -1,5 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
+  import { browser } from '$app/environment';
+  import { shouldGoBackInHistory } from '$lib/back-nav';
 
   // Consistent page top: optional back link, title, subtitle, right-aligned actions.
   let {
@@ -17,11 +20,36 @@
     subtitle?: Snippet;
     actions?: Snippet;
   } = $props();
+
+  // The `back` href is a fallback target; when we got here via an in-app
+  // navigation, "← Back" should return to wherever you actually came from
+  // rather than jump to that hardcoded href.
+  let canGoBack = $state(false);
+  afterNavigate((nav) => {
+    canGoBack = nav.from != null;
+  });
+
+  function onBack(e: MouseEvent) {
+    if (
+      shouldGoBackInHistory({
+        canGoBack,
+        inBrowser: browser,
+        button: e.button,
+        metaKey: e.metaKey,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey
+      })
+    ) {
+      e.preventDefault();
+      history.back();
+    }
+  }
 </script>
 
 <header class="page-header" class:sticky>
   <div class="lead">
-    {#if back}<a class="back" href={back}>← {backLabel}</a>{/if}
+    {#if back}<a class="back" href={back} onclick={onBack}>← {backLabel}</a>{/if}
     <h1>{title}</h1>
     {#if subtitle}<div class="subtitle">{@render subtitle()}</div>{/if}
   </div>
