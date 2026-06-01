@@ -64,11 +64,13 @@
       (safeCouncil ? 1 : 0) +
       plan.councillors.add.length +
       plan.memory.add.length +
-      (!plan.sample_jobs.skipped_because_jobs_exist && plan.sample_jobs.add > 0 ? 1 : 0)}
+      (!plan.sample_jobs.skipped_because_jobs_exist && plan.sample_jobs.add > 0 ? 1 : 0) +
+      plan.env.add.length}
     {@const overwriteCount =
       (plan.council.exists && plan.council.willOverwrite ? 1 : 0) +
       plan.councillors.overwrite.length +
-      plan.memory.overwrite.length}
+      plan.memory.overwrite.length +
+      plan.env.overwrite.length}
     {@const skippedCount = plan.sample_jobs.skipped_because_jobs_exist ? 1 : 0}
 
     <div class="risk-groups">
@@ -82,6 +84,7 @@
             {#if safeCouncil}<li>create council</li>{/if}
             {#each plan.councillors.add as s}<li>councillor: {s}</li>{/each}
             {#each plan.memory.add as s}<li>memory note: {s}</li>{/each}
+            {#each plan.env.add as k}<li>env: {k}</li>{/each}
             {#if !plan.sample_jobs.skipped_because_jobs_exist && plan.sample_jobs.add > 0}
               <li>sample jobs: {plan.sample_jobs.add}</li>
             {/if}
@@ -101,6 +104,7 @@
             {#if plan.council.exists && plan.council.willOverwrite}<li>council meta will be replaced</li>{/if}
             {#each plan.councillors.overwrite as s}<li>councillor (overwrite): {s}</li>{/each}
             {#each plan.memory.overwrite as s}<li>memory note (overwrite): {s}</li>{/each}
+            {#each plan.env.overwrite as k}<li>env (overwrite): {k}</li>{/each}
           </ul>
         {:else}
           <p class="hint">No existing data will be replaced.</p>
