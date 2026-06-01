@@ -204,6 +204,22 @@ Peer audit log written at the **council root** (not inside a meeting directory).
 - `duration_ms` — wall-clock time for the adapter call.
 - `exit_code` — adapter exit code (0 = success).
 
+## `*.template.json` schema
+
+Top-level fields of a council template file:
+
+- `format_version` — must be `1`.
+- `name` — machine-readable template identifier (used in provenance string).
+- `version` — semver string.
+- `description?` — human-readable summary.
+- `author?` — attribution string.
+- `license?` — SPDX identifier or short license name.
+- `council` — `{ name, description? }` — default council name/description applied on install.
+- `councillors` — array of `{ slug?, name, role, routing_hint?, adapter, persona, reflect? }`. At least one required.
+- `memory?` — array of `{ title, body }` shared memory notes seeded on install.
+- `sample_jobs?` — array of `{ title, brief, councillor_slug }` queued only when the council's `jobs/` directory is empty.
+- `env?` — array of `{ key, value, comment? }`. Optional default environment variables seeded into the council `.env` on install. Keys must be valid env identifiers (`^[A-Za-z_][A-Za-z0-9_]*$`); values are single-line. `comment` documents the key in the template only (not written to `.env`). Export refuses secret-named keys (`key`, `api`, `token`, `secret`, `password`, `credential`, `auth`, `private`).
+
 ## Invariants
 
 - One council per process. The Landsraad app runs against `cwd` (or `LANDSRAAD_COUNCIL_ROOT`).
