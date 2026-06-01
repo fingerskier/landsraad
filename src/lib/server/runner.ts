@@ -28,7 +28,6 @@ interface ActiveRun {
   jobId: string;
   councillorSlug: string;
   controller: AbortController;
-  promise: Promise<Job>;
 }
 
 // keyed by jobId (not councillor slug)
@@ -168,11 +167,21 @@ export async function runJobNow(jobId: string, opts: RunOptions = {}): Promise<J
   if (pendingCancels.delete(jobId)) {
     controller.abort();
   }
-  const prompt = await buildPrompt(job, councillor.persona);
-  await writeInput(jobId, prompt);
+  // Register the run BEFORE any further awaits. buildPrompt/writeInput below take
+  // real time (memory IO + file write); if registration waited until after them,
+  // a cancelJob() arriving in that window would land in pendingCancels — which has
+  // already been consumed above and is never re-checked — and the abort would be lost,
+  // letting the job run to 'succeeded'. No awaits between consuming pendingCancels
+  // and runs.set() means there is no dead window.
+  runs.set(jobId, { jobId, councillorSlug: councillor.slug, controller });
 
   const promise = (async (): Promise<Job> => {
     try {
+      // Prompt assembly + input write live inside the try so the finally below
+      // always releases the lock and clears the runs entry, even if they throw.
+      const prompt = await buildPrompt(job, councillor.persona);
+      await writeInput(jobId, prompt);
+
       await setStatus(jobId, 'running', {
         started_at: new Date().toISOString()
       });
@@ -258,7 +267,6 @@ export async function runJobNow(jobId: string, opts: RunOptions = {}): Promise<J
     }
   })();
 
-  runs.set(jobId, { jobId, councillorSlug: councillor.slug, controller, promise });
   return promise;
 }
 

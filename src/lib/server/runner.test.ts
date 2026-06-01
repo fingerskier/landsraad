@@ -103,7 +103,25 @@ describe('runner', () => {
     const j = await createJob({ title: 'Slow', brief: 's', councillor_slug: 'mocky' });
     const adapterOverride = { id: slow.id, kind: 'mock' as const, run: slow.run };
     const p = runJobNow(j.id, { adapterOverride });
-    await new Promise((r) => setTimeout(r, 20));
+    // Poll until the run is registered, then cancel — deterministic vs. a fixed
+    // sleep, which could race the setup window (see pendingCancels handling).
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline && !currentRuns().some((r) => r.jobId === j.id)) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    await cancelJob(j.id);
+    const final = await p;
+    expect(['cancelled', 'failed']).toContain(final.status);
+  });
+
+  it('honors a cancel requested before the run registers (pendingCancels path)', async () => {
+    const slow = createMockAdapter({ delayMs: 200 });
+    const j = await createJob({ title: 'EarlyKill', brief: 's', councillor_slug: 'mocky' });
+    const adapterOverride = { id: slow.id, kind: 'mock' as const, run: slow.run };
+    // Cancel immediately, before runJobNow's setup awaits resolve and the run is
+    // registered. The cancel must still take effect (queued via pendingCancels),
+    // never letting the job slip through to 'succeeded'.
+    const p = runJobNow(j.id, { adapterOverride });
     await cancelJob(j.id);
     const final = await p;
     expect(['cancelled', 'failed']).toContain(final.status);
