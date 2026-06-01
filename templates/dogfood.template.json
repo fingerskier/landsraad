@@ -34,5 +34,17 @@
       "brief": "Greet the council in one short paragraph.",
       "councillor_slug": "mocky"
     }
+  ],
+  "env": [
+    {
+      "key": "LANDSRAAD_MEETING_MODEL",
+      "value": "lite",
+      "comment": "Use the cheaper model for meeting turns."
+    },
+    {
+      "key": "LANDSRAAD_MEETING_TURN_NUDGE",
+      "value": "Be terse — 1-3 sentences.",
+      "comment": "Keep meeting responses short."
+    }
   ]
 }
