@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveModel, getCliConfig, parseAdapterId } from './cli';
+import { effectiveModel, getCliConfig, parseAdapterId, shouldUseShell } from './cli';
 
 describe('cli adapter configs', () => {
   it('codex exec is invoked with --skip-git-repo-check so non-git council dirs work', () => {
@@ -104,6 +104,25 @@ describe('cli adapter tier tables', () => {
   it('claude exposes lite/medium/heavy tier aliases', () => {
     const cfg = getCliConfig('cli:claude');
     expect(cfg!.tiers).toEqual({ lite: 'haiku', medium: 'sonnet', heavy: 'opus' });
+  });
+});
+
+describe('shouldUseShell', () => {
+  // Arg-mode adapters pass the prompt as an argv entry. Node does NOT quote args
+  // when shell:true, so on Windows a multi-word prompt gets split by cmd.exe and
+  // the CLI mis-parses it (grok read "Persona:" as --single's value, then the
+  // next word as a subcommand → "unrecognized subcommand"). These commands are
+  // native exes, so they spawn fine without a shell — and then Node quotes argv.
+  it('never uses a shell for arg-mode adapters (prevents unquoted-arg splitting)', () => {
+    expect(shouldUseShell(getCliConfig('cli:grok')!)).toBe(false);
+    expect(shouldUseShell(getCliConfig('cli:aider')!)).toBe(false);
+    expect(shouldUseShell(getCliConfig('cli:warp')!)).toBe(false);
+  });
+
+  // Pipe-mode commands are often npm .cmd shims that Node can only launch via the
+  // shell on Windows; their argv is static flags with no user text, so it's safe.
+  it('uses a shell for pipe-mode adapters only on Windows', () => {
+    expect(shouldUseShell(getCliConfig('cli:claude')!)).toBe(process.platform === 'win32');
   });
 });
 

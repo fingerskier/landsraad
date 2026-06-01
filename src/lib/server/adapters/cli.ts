@@ -142,6 +142,20 @@ export function getCliConfig(adapterId: string): CliAdapterConfig | null {
   return REGISTRY[adapterId] ?? null;
 }
 
+/**
+ * Decide whether to spawn this adapter through a shell. On Windows, npm-installed
+ * CLIs (claude, codex, gemini…) are `.cmd`/`.ps1` shims that Node can only launch
+ * via the shell — but Node does NOT quote argv when `shell:true`, so a multi-word
+ * prompt passed as an arg gets word-split by cmd.exe (grok then read "Persona:" as
+ * the `--single` value and the next token as a subcommand). We therefore only use
+ * the shell for `pipe` adapters, whose argv is static flags with no user text and
+ * whose prompt travels safely over stdin. `arg` adapters (grok/aider/warp) are
+ * native exes that spawn fine shell-less, letting Node quote their prompt argv.
+ */
+export function shouldUseShell(config: CliAdapterConfig): boolean {
+  return process.platform === 'win32' && config.stdinMode === 'pipe';
+}
+
 export function listCliAdapterIds(): string[] {
   return Object.keys(REGISTRY);
 }
@@ -153,7 +167,7 @@ export function runCliAdapter(
   const child = spawn(config.command, config.args(args.prompt, { model: args.model }), {
     cwd: args.cwd,
     env: args.env ?? process.env,
-    shell: process.platform === 'win32',
+    shell: shouldUseShell(config),
     signal: args.signal
   });
 
