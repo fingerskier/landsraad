@@ -249,6 +249,19 @@ export function deleteByRef(h: IndexHandle, kind: ChunkKind, ref_id: string): vo
   tx();
 }
 
+export interface IndexedFileRow {
+  source_path: string;
+  kind: ChunkKind;
+  ref_id: string;
+  source_mtime: string;
+}
+
+export function listIndexedFiles(h: IndexHandle): IndexedFileRow[] {
+  return h.db
+    .prepare('SELECT DISTINCT source_path, kind, ref_id, source_mtime FROM chunks')
+    .all() as IndexedFileRow[];
+}
+
 export function search(h: IndexHandle, query: string, opts: SearchOptions = {}): SearchHit[] {
   const k = opts.k ?? 10;
   const embedResult = h.embedder.embed([query]);

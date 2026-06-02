@@ -1,6 +1,6 @@
 import type { ChunkKind, Embedder, IndexHandle } from './embeddings';
-import { closeIndex, deleteByRef, openIndex, searchAsync, upsertChunkAsync } from './embeddings';
-import type { SearchHit, SearchOptions } from './embeddings';
+import { closeIndex, deleteByRef, listIndexedFiles, openIndex, searchAsync, upsertChunkAsync } from './embeddings';
+import type { IndexedFileRow, SearchHit, SearchOptions } from './embeddings';
 
 let _embedder: Embedder | null = null;
 let _handle: IndexHandle | null = null;
@@ -75,6 +75,17 @@ export async function indexSearch(query: string, opts?: SearchOptions): Promise<
     return await searchAsync(h, query, opts);
   } catch (err) {
     console.warn(`[indexer] search "${query}" failed:`, (err as Error).message);
+    return [];
+  }
+}
+
+export function indexListFiles(): IndexedFileRow[] {
+  const h = get();
+  if (!h) return [];
+  try {
+    return listIndexedFiles(h);
+  } catch (err) {
+    console.warn(`[indexer] listIndexedFiles failed:`, (err as Error).message);
     return [];
   }
 }
