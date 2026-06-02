@@ -2,6 +2,7 @@ import { env } from 'node:process';
 import type { Handle } from '@sveltejs/kit';
 import { xenovaEmbedder } from '$lib/server/embedder-xenova';
 import { setEmbedder } from '$lib/server/indexer';
+import { startIndexWatcher, stopIndexWatcher } from '$lib/server/watcher';
 import { startScheduler, stopScheduler } from '$lib/server/scheduler';
 import { loadCouncilEnvIntoProcess } from '$lib/server/env-file';
 
@@ -20,6 +21,15 @@ if (env.LANDSRAAD_EMBED !== '0') {
   } catch (err) {
     console.warn('[landsraad] embedder init failed; search disabled:', (err as Error).message);
   }
+
+  if (env.LANDSRAAD_WATCH !== '0') {
+    try {
+      startIndexWatcher();
+      console.log('[landsraad] index watcher started');
+    } catch (err) {
+      console.warn('[landsraad] index watcher failed:', (err as Error).message);
+    }
+  }
 }
 
 if (env.LANDSRAAD_SCHEDULER !== '0') {
@@ -29,7 +39,14 @@ if (env.LANDSRAAD_SCHEDULER !== '0') {
   for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     process.once(sig, () => {
       stopScheduler();
+      void stopIndexWatcher();
     });
+  }
+}
+
+if (env.LANDSRAAD_SCHEDULER === '0') {
+  for (const sig of ['SIGINT', 'SIGTERM'] as const) {
+    process.once(sig, () => void stopIndexWatcher());
   }
 }
 
