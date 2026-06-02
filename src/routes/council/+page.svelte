@@ -54,6 +54,7 @@
   <a href="#councillors">Councillors</a>
   <a href="#environment">Environment</a>
   <a href="#import-export">Import / Export</a>
+  <a href="#about">About</a>
   <a href="#danger">Danger zone</a>
 </nav>
 
@@ -155,6 +156,16 @@
   </div>
 </section>
 
+<section id="about" class="section">
+  <h2>About</h2>
+  <p class="note">Versions for this Landsraad build.</p>
+  <dl class="versions">
+    <div class="vrow"><dt>App</dt><dd>{data.versions.app}</dd></div>
+    <div class="vrow"><dt>Template format</dt><dd>{data.versions.templateFormat}</dd></div>
+    <div class="vrow"><dt>Node</dt><dd>{data.versions.node}</dd></div>
+  </dl>
+</section>
+
 <section id="danger" class="section danger-zone" aria-label="Danger zone">
   <h2>Danger zone</h2>
   <p class="note">
@@ -231,6 +242,11 @@
   }
   .row-actions { display: flex; gap: 0.5rem; align-items: center; }
   .row-actions form { margin: 0; }
+
+  .versions { display: grid; gap: 0.4rem; margin: 0.5rem 0 0; max-width: 640px; }
+  .vrow { display: grid; grid-template-columns: 11rem 1fr; gap: 0.5rem 1rem; align-items: baseline; }
+  .versions dt { color: var(--muted); font-size: 0.9em; }
+  .versions dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
   .danger-zone {
     border: 1px solid var(--danger);

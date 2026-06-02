@@ -9,6 +9,8 @@ import { deleteCouncillor } from '$lib/server/councillors';
 import { listKnownAdapters } from '$lib/server/adapters';
 import { parseAdapterId } from '$lib/server/adapters/cli';
 import { readCouncilEnv, writeCouncilEnv, type EnvPair } from '$lib/server/env-file';
+import { TEMPLATE_FORMAT_VERSION } from '$lib/server/templates';
+import pkg from '../../../package.json' with { type: 'json' };
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -35,7 +37,12 @@ export const load: PageServerLoad = async () => {
     const match = known.find((a) => a.id === base);
     adapterHealth[cl.slug] = !match ? 'unknown' : match.available ? 'ready' : 'unavailable';
   }
-  return { council, pairs: readCouncilEnv(), adapterHealth };
+  const versions = {
+    app: pkg.version,
+    templateFormat: TEMPLATE_FORMAT_VERSION,
+    node: process.version
+  };
+  return { council, pairs: readCouncilEnv(), adapterHealth, versions };
 };
 
 export const actions: Actions = {

@@ -1,5 +1,8 @@
 import type { Job, Councillor, MemoryNote } from '$lib/types';
 
+/** The template wire-format version this build reads and writes. */
+export const TEMPLATE_FORMAT_VERSION = 1 as const;
+
 // ---------- schema ----------
 
 export interface CouncilTemplate {
@@ -174,7 +177,7 @@ function derivedSlug(c: TemplateCouncillor): string {
 
 function validateTemplate(raw: unknown): CouncilTemplate {
   if (!isObject(raw)) throw new TemplateValidationError('Template root must be a JSON object.');
-  if (raw.format_version !== 1) {
+  if (raw.format_version !== TEMPLATE_FORMAT_VERSION) {
     throw new TemplateValidationError(
       `Unsupported format_version ${JSON.stringify(raw.format_version)}; expected 1.`
     );
@@ -232,7 +235,7 @@ function validateTemplate(raw: unknown): CouncilTemplate {
   }
 
   return {
-    format_version: 1,
+    format_version: TEMPLATE_FORMAT_VERSION,
     name,
     version,
     description,
@@ -571,7 +574,7 @@ export async function exportSelection(s: ExportSelection): Promise<CouncilTempla
   }
 
   return {
-    format_version: 1,
+    format_version: TEMPLATE_FORMAT_VERSION,
     name: s.council.name,
     version: s.council.version,
     description: s.council.description,

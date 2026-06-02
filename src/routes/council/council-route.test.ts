@@ -41,6 +41,16 @@ describe('/council route', () => {
     expect(data.pairs).toContainEqual({ key: 'X', value: '1' });
   });
 
+  it('reports app, template-format, and node versions', async () => {
+    await createCouncil({ name: 'C', description: '' });
+    const data = (await (load as () => Promise<{
+      versions: { app: string; templateFormat: number; node: string };
+    }>)());
+    expect(data.versions.app).toMatch(/\d+\.\d+/);
+    expect(data.versions.templateFormat).toBe(1);
+    expect(data.versions.node).toBe(process.version);
+  });
+
   it('404s when no council exists', async () => {
     try {
       await (load as () => Promise<unknown>)();
