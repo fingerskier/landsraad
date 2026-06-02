@@ -112,6 +112,21 @@ const SOURCES: IndexSource[] = [
   jobSource('input\\.md', 'job_input'),
   jobSource('output\\.md', 'job_output'),
   jobSource('transcript\\.md', 'transcript'),
+  {
+    kind: 'meeting_turn',
+    test: (rel) => /^meetings\/[^/]+\/transcript\.md$/.test(norm(rel)),
+    refId: (rel) => norm(rel).split('/')[1],
+    buildChunks: (text, rel, abs) => {
+      const m = readJson(sibling(abs, 'meeting.json'));
+      const title = (m?.title as string) ?? norm(rel).split('/')[1];
+      return parseTranscript(text).map((t) => ({
+        chunk_idx: t.turnIndex,
+        text: t.body,
+        title: `${title} · turn ${t.turnIndex} · ${t.speaker}`,
+        councillor_slug: t.speaker === 'director' || t.speaker.includes(':') ? null : t.speaker
+      }));
+    }
+  },
   meetingWholeSource('topic\\.md', 'meeting_topic', '', false),
   meetingWholeSource('summary\\.md', 'meeting_summary', ' · summary', true),
   meetingWholeSource('synthesis\\.md', 'meeting_synthesis', ' · synthesis', true)

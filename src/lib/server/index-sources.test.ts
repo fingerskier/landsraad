@@ -90,4 +90,22 @@ describe('resolveSource — whole-file kinds', () => {
     expect(resolveSource('jobs/2026-job-x/events.jsonl')).toBeNull();
     expect(resolveSource('.index/embeddings.db')).toBeNull();
   });
+
+  it('maps a meeting transcript into one chunk per turn', () => {
+    write('meetings/2026-m1/meeting.json', JSON.stringify({ title: 'M1', chair_slug: 'quant' }));
+    const body =
+      '\n## Turn 1 — quant — 2026-06-02T00:00:00Z\n\nHello from quant.\n' +
+      '\n## Turn 2 — director — 2026-06-02T00:01:00Z\n\nDirector speaks.\n';
+    const rel = 'meetings/2026-m1/transcript.md';
+    const abs = write(rel, body);
+    const src = resolveSource(rel)!;
+    expect(src.kind).toBe('meeting_turn');
+    expect(src.refId(rel)).toBe('2026-m1');
+    const chunks = src.buildChunks(body, rel, abs);
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0]).toMatchObject({ chunk_idx: 1, councillor_slug: 'quant', text: 'Hello from quant.' });
+    expect(chunks[0].title).toBe('M1 · turn 1 · quant');
+    expect(chunks[1]).toMatchObject({ chunk_idx: 2, councillor_slug: null });
+    expect(chunks[1].title).toBe('M1 · turn 2 · director');
+  });
 });
