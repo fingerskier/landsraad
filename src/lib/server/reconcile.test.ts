@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,13 +11,11 @@ import { closeAll, indexSearch, indexListFiles, setEmbedder } from './indexer';
 import { reindexFile, removeFile } from './reconcile';
 
 const DIM = 384;
-const embedSpy = vi.fn();
 
 function fakeEmbedder(): Embedder {
   return {
     dim: DIM,
     embed(texts) {
-      embedSpy();
       return texts.map((text) => {
         const v = new Float32Array(DIM);
         for (const t of text.toLowerCase().split(/\s+/).filter(Boolean)) {
@@ -43,7 +41,6 @@ beforeEach(async () => {
   env.LANDSRAAD_COUNCIL_ROOT = root;
   setEmbedder(fakeEmbedder());
   await createCouncil({ name: 'Reconcile Test' });
-  embedSpy.mockClear();
 });
 
 afterEach(() => {

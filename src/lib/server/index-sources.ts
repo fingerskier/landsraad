@@ -130,7 +130,6 @@ const SOURCES: IndexSource[] = [
   meetingWholeSource('topic\\.md', 'meeting_topic', '', false),
   meetingWholeSource('summary\\.md', 'meeting_summary', ' · summary', true),
   meetingWholeSource('synthesis\\.md', 'meeting_synthesis', ' · synthesis', true)
-  // meeting transcript (multi-chunk) added in Task 4
 ];
 
 export function resolveSource(rel: string): IndexSource | null {
@@ -139,4 +138,3 @@ export function resolveSource(rel: string): IndexSource | null {
 }
 
 export const __sourcesForTest = SOURCES;
-export { parseTranscript };

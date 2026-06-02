@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, unlinkSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { env } from 'node:process';
@@ -12,10 +12,13 @@ import { reindexFile } from './reconcile';
 import { startIndexWatcher, stopIndexWatcher } from './watcher';
 
 const DIM = 384;
+let embedCount = 0;
+
 function fakeEmbedder(): Embedder {
   return {
     dim: DIM,
     embed(texts) {
+      embedCount += texts.length;
       return texts.map((text) => {
         const v = new Float32Array(DIM);
         for (const t of text.toLowerCase().split(/\s+/).filter(Boolean)) {
@@ -32,10 +35,15 @@ function fakeEmbedder(): Embedder {
   };
 }
 
+function settle(ms = 600): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 let root: string;
 let prev: string | undefined;
 
 beforeEach(async () => {
+  embedCount = 0;
   prev = env.LANDSRAAD_COUNCIL_ROOT;
   root = mkdtempSync(join(tmpdir(), 'landsraad-watcher-'));
   env.LANDSRAAD_COUNCIL_ROOT = root;
@@ -101,5 +109,53 @@ describe('index watcher', () => {
   it('no-ops when no embedder is set', async () => {
     setEmbedder(null);
     expect(startIndexWatcher(root)).toBeNull();
+  });
+
+  it('skips re-embedding an unchanged file on watcher restart', async () => {
+    // Index the file with a live watcher so source_mtime is recorded
+    write('memory/keep.md', '# Keep\n\nunique-keep body');
+    startIndexWatcher(root);
+    await waitUntil(async () => (await indexSearch('unique-keep')).length > 0);
+    await stopIndexWatcher();
+
+    // Record embed count after initial indexing — file is now in the manifest
+    const baseline = embedCount;
+
+    // Restart watcher over the same root without touching the file
+    startIndexWatcher(root);
+    // Wait for the startup scan to settle (awaitWriteFinish stabilityThreshold is 200ms)
+    await settle(600);
+
+    // The manifest mtime matches fs mtime → skip should have fired, no new chunks embedded
+    expect(embedCount).toBe(baseline);
+    // File must still be searchable (chunks were not removed)
+    expect((await indexSearch('unique-keep')).length).toBeGreaterThan(0);
+  });
+
+  it('re-embeds a file whose mtime changed while stopped', async () => {
+    // Index the file with a live watcher
+    write('memory/change.md', '# Change\n\nunique-change-v1 body');
+    startIndexWatcher(root);
+    await waitUntil(async () => (await indexSearch('unique-change-v1')).length > 0);
+    await stopIndexWatcher();
+
+    const baseline = embedCount;
+
+    // Mutate the file AND force a future mtime so it differs from the manifest value
+    const abs = join(root, 'memory/change.md');
+    writeFileSync(abs, '# Change\n\nunique-change-v2 body', 'utf8');
+    const futureMtime = new Date(Date.now() + 2000);
+    utimesSync(abs, futureMtime, futureMtime);
+
+    // Restart watcher — onUpsert should detect mtime mismatch and re-embed
+    startIndexWatcher(root);
+    await waitUntil(async () => {
+      const hits = await indexSearch('unique-change-v2');
+      return hits.some((h) => h.text.includes('unique-change-v2'));
+    });
+
+    expect(embedCount).toBeGreaterThan(baseline);
+    const hits = await indexSearch('unique-change-v2');
+    expect(hits.some((h) => h.text.includes('unique-change-v2'))).toBe(true);
   });
 });
