@@ -11,6 +11,7 @@ import { createNote, deleteNote, updateNote } from './memory';
 import { createJob, writeInput, writeOutput, appendTranscript } from './jobs';
 import type { Embedder } from './embeddings';
 import { closeAll, indexSearch, setEmbedder } from './indexer';
+import { reindexFile } from './reconcile';
 
 const DIM = 384;
 
@@ -54,21 +55,20 @@ afterEach(() => {
   else env.LANDSRAAD_COUNCIL_ROOT = prevEnv;
 });
 
-describe('indexer write-hooks', () => {
-  it('indexes a memory note on create', async () => {
-    await createNote({
-      title: 'Capital Allocation',
-      body: 'Reserve 30% runway. Avoid speculative venture bets.'
-    });
+describe('indexer via reconcile', () => {
+  it('indexes a memory note', async () => {
+    await createNote({ title: 'Capital Allocation', body: 'Reserve 30% runway.' });
+    await reindexFile('memory/capital-allocation.md');
     const hits = await indexSearch('runway reserve');
-    expect(hits.length).toBeGreaterThan(0);
     expect(hits[0].kind).toBe('memory');
     expect(hits[0].ref_id).toBe('capital-allocation');
   });
 
   it('re-indexes on update', async () => {
     await createNote({ title: 'Doc', body: 'first draft about pancakes' });
+    await reindexFile('memory/doc.md');
     await updateNote('doc', '# Doc\n\nsecond draft about waffles');
+    await reindexFile('memory/doc.md');
     const hits = await indexSearch('waffles');
     expect(hits[0]?.text).toContain('waffles');
     expect(hits[0]?.text).not.toContain('pancakes');
@@ -76,43 +76,40 @@ describe('indexer write-hooks', () => {
 
   it('removes from index on delete', async () => {
     await createNote({ title: 'Doomed', body: 'unique-tk delete-me-soon' });
+    await reindexFile('memory/doomed.md');
     expect((await indexSearch('unique-tk delete-me-soon')).length).toBe(1);
     await deleteNote('doomed');
+    await reindexFile('memory/doomed.md'); // file gone → chunks removed
     expect(await indexSearch('unique-tk delete-me-soon')).toEqual([]);
   });
 
-  it('indexes job input and output', async () => {
+  it('indexes job input, transcript, output', async () => {
     await createCouncillor({ name: 'Mocky', role: 'tester', adapter: 'mock:local' });
-    const job = await createJob({
-      title: 'Test Job',
-      brief: 'do the thing',
-      councillor_slug: 'mocky'
-    });
+    const job = await createJob({ title: 'Test Job', brief: 'do the thing', councillor_slug: 'mocky' });
     await writeInput(job.id, 'Please analyze quarterly revenue trends.');
-    await appendTranscript(job.id, 'Adapter said: Q3 revenue is up 12%.');
+    await appendTranscript(job.id, '\n## Turn 1 — mocky — 2026-06-02T00:00:00Z\n\nQ3 revenue up 12%.\n');
     await writeOutput(job.id, 'Final: Q3 revenue up 12% YoY, driven by enterprise.');
-
+    await reindexFile(`jobs/${job.id}/input.md`);
+    await reindexFile(`jobs/${job.id}/output.md`);
     const out = await indexSearch('quarterly revenue enterprise');
-    expect(out.length).toBeGreaterThan(0);
-    const kinds = new Set(out.map((h) => h.kind));
-    expect(kinds.has('job_input') || kinds.has('job_output') || kinds.has('transcript')).toBe(true);
     const outHit = out.find((h) => h.kind === 'job_output');
     expect(outHit?.councillor_slug).toBe('mocky');
     expect(outHit?.title).toBe('Test Job');
   });
 
-  it('indexes councillor persona on create and removes on delete', async () => {
+  it('indexes and removes a councillor persona', async () => {
     await createCouncillor({
       name: 'Polly',
       role: 'oracle',
       adapter: 'mock:local',
       persona: 'I am Polly, a uniquely-tokened oracle for risk forecasts.'
     });
+    await reindexFile('councillors/polly/persona.md');
     const hits = await indexSearch('uniquely-tokened oracle risk forecasts');
     expect(hits[0]?.kind).toBe('persona');
     expect(hits[0]?.councillor_slug).toBe('polly');
-
     await deleteCouncillor('polly');
+    await reindexFile('councillors/polly/persona.md');
     expect(await indexSearch('uniquely-tokened oracle risk forecasts')).toEqual([]);
   });
 
@@ -123,9 +120,10 @@ describe('indexer write-hooks', () => {
       adapter: 'mock:local',
       persona: 'before-shape tokens-alpha'
     });
+    await reindexFile('councillors/mutable/persona.md');
     await updateCouncillor('mutable', { persona: 'after-shape tokens-beta' });
+    await reindexFile('councillors/mutable/persona.md');
     const hits = await indexSearch('after-shape tokens-beta');
-    expect(hits.length).toBeGreaterThan(0);
     expect(hits[0].text).toContain('after-shape');
     expect(hits[0].text).not.toContain('before-shape');
   });

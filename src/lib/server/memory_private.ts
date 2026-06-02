@@ -2,7 +2,6 @@ import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { councillorMemoryDir, slugify } from './paths';
-import { indexDelete, indexUpsert } from './indexer';
 
 const NOTE_EXT = '.md';
 
@@ -82,15 +81,6 @@ export async function createPrivateNote(
     : `# ${title}\n\n${input.body}`;
   await writeFile(file, body, 'utf8');
   const note = await readPrivateNote(councillorSlug, slug);
-  await indexUpsert({
-    kind: 'memory_private',
-    ref_id: `${councillorSlug}/${slug}`,
-    text: note.body,
-    source_path: file,
-    source_mtime: note.updated_at,
-    title: note.title,
-    councillor_slug: councillorSlug
-  });
   return note;
 }
 
@@ -103,15 +93,6 @@ export async function updatePrivateNote(
   if (!existsSync(file)) throw new Error(`Private note "${slug}" does not exist.`);
   await writeFile(file, body, 'utf8');
   const note = await readPrivateNote(councillorSlug, slug);
-  await indexUpsert({
-    kind: 'memory_private',
-    ref_id: `${councillorSlug}/${slug}`,
-    text: note.body,
-    source_path: file,
-    source_mtime: note.updated_at,
-    title: note.title,
-    councillor_slug: councillorSlug
-  });
   return note;
 }
 
@@ -119,5 +100,4 @@ export async function deletePrivateNote(councillorSlug: string, slug: string): P
   const file = noteFile(councillorSlug, slug);
   if (!existsSync(file)) return;
   await rm(file, { force: true });
-  indexDelete('memory_private', `${councillorSlug}/${slug}`);
 }

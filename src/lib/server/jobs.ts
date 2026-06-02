@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import type { Job, JobEvent, JobStatus } from '$lib/types';
 import { jobDir, jobIdFor, jobsDir } from './paths';
 import { hasCouncil } from './councils';
-import { indexUpsert } from './indexer';
 
 const JOB_FILE = 'job.json';
 const INPUT_FILE = 'input.md';
@@ -97,16 +96,6 @@ export async function readEvents(jobId: string): Promise<JobEvent[]> {
 export async function writeInput(jobId: string, body: string): Promise<void> {
   const file = join(jobDir(jobId), INPUT_FILE);
   await writeFile(file, body, 'utf8');
-  const job = await readJob(jobId).catch(() => null);
-  await indexUpsert({
-    kind: 'job_input',
-    ref_id: jobId,
-    text: body,
-    source_path: file,
-    source_mtime: new Date().toISOString(),
-    title: job?.title ?? null,
-    councillor_slug: job?.councillor_slug ?? null
-  });
 }
 
 export async function readInput(jobId: string): Promise<string> {
@@ -126,28 +115,6 @@ export async function readTranscript(jobId: string): Promise<string> {
 export async function writeOutput(jobId: string, body: string): Promise<void> {
   const file = join(jobDir(jobId), OUTPUT_FILE);
   await writeFile(file, body, 'utf8');
-  const job = await readJob(jobId).catch(() => null);
-  await indexUpsert({
-    kind: 'job_output',
-    ref_id: jobId,
-    text: body,
-    source_path: file,
-    source_mtime: new Date().toISOString(),
-    title: job?.title ?? null,
-    councillor_slug: job?.councillor_slug ?? null
-  });
-  const transcript = await readTranscript(jobId).catch(() => '');
-  if (transcript.trim()) {
-    await indexUpsert({
-      kind: 'transcript',
-      ref_id: jobId,
-      text: transcript,
-      source_path: join(jobDir(jobId), TRANSCRIPT_FILE),
-      source_mtime: new Date().toISOString(),
-      title: job?.title ?? null,
-      councillor_slug: job?.councillor_slug ?? null
-    });
-  }
 }
 
 export async function readOutput(jobId: string): Promise<string> {
