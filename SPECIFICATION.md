@@ -108,6 +108,21 @@ Two tiers, both markdown on disk:
 
 Prompt assembly is top-K semantic retrieval against the sqlite-vec index — `MEMORY_TOPK_SHARED` shared hits + `MEMORY_TOPK_PRIVATE` private hits, capped by `MEMORY_CHAR_BUDGET` total characters (see `src/lib/server/config.ts`). If the index is empty or embedding fails, assembly falls back to "all shared notes verbatim." See [`docs/embeddings.md`](docs/embeddings.md) for chunk kinds and storage.
 
+### Indexing model
+
+The semantic index is **pull-based**: the filesystem under the council root is the
+single source of truth. Writers only write files; they never call the indexer. A
+chokidar watcher (`src/lib/server/watcher.ts`) re-derives index chunks from a
+path→kind source registry (`src/lib/server/index-sources.ts`) on add/change/unlink.
+
+- On startup the watcher loads a manifest (`source_path → source_mtime`) and skips
+  files whose mtime is unchanged; files indexed for paths that no longer exist are
+  pruned (orphan sweep on `ready`).
+- Moving a finished job's `output.md` into `councillors/<slug>/memory/` therefore
+  re-kinds it as private memory automatically.
+- Set `LANDSRAAD_WATCH=0` to disable the watcher (e.g. to avoid two processes
+  writing the same `.index/` in development).
+
 ### Reflection
 
 After a job transitions to `succeeded`, the runner makes one extra adapter call to the same councillor with a fixed reflection prompt (`src/lib/server/reflection.ts`). The prompt includes the job's `transcript.md` + `output.md` and asks for zero or more agent → host blocks (see [Agent Proposals](#agent-proposals)). Reflection is opt-out per councillor (`councillor.json` `reflect: boolean`, default `true`). Failed/cancelled jobs skip reflection. Reflection failure is non-fatal; it appends a `reflection_failed` event and leaves the job `succeeded`.
