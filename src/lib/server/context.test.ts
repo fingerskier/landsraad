@@ -1,15 +1,39 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { env } from 'node:process';
+import { createHash } from 'node:crypto';
 
 import { createCouncil } from './councils';
 import { createCouncillor } from './councillors';
 import { createNote } from './memory';
 import { createPrivateNote } from './memory_private';
-import { setEmbedder } from './indexer';
+import type { Embedder } from './embeddings';
+import { closeAll, setEmbedder } from './indexer';
+import { reindexFile } from './reconcile';
 import { assembleContextFor } from './context';
+
+const DIM = 384;
+function fakeEmbedder(): Embedder {
+  return {
+    dim: DIM,
+    embed(texts) {
+      return texts.map((text) => {
+        const v = new Float32Array(DIM);
+        for (const t of text.toLowerCase().split(/\s+/).filter(Boolean)) {
+          const h = createHash('sha1').update(t).digest();
+          v[h.readUInt16BE(0) % DIM] += 1;
+        }
+        let n = 0;
+        for (let i = 0; i < DIM; i++) n += v[i] * v[i];
+        n = Math.sqrt(n) || 1;
+        for (let i = 0; i < DIM; i++) v[i] /= n;
+        return v;
+      });
+    }
+  };
+}
 
 let tmpRoot: string;
 let prevEnv: string | undefined;
@@ -24,6 +48,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  closeAll();
+  setEmbedder(null);
   rmSync(tmpRoot, { recursive: true, force: true });
   if (prevEnv === undefined) delete env.LANDSRAAD_COUNCIL_ROOT;
   else env.LANDSRAAD_COUNCIL_ROOT = prevEnv;
@@ -82,5 +108,29 @@ describe('assembleContextFor — roster injection', () => {
     const ctx = await assembleContextFor('alice', 'any brief');
     expect(ctx).toContain('alice — Alice — cto');
     expect(ctx).toContain('bob — Bob — cfo');
+  });
+});
+
+describe('assembleContextFor — project context (workspace indexing)', () => {
+  it('includes a Project context section from indexed product docs', async () => {
+    setEmbedder(fakeEmbedder());
+    mkdirSync(join(tmpRoot, 'docs'), { recursive: true });
+    writeFileSync(
+      join(tmpRoot, 'docs/launch.md'),
+      '# Launch Plan\n\nship the unique-proj-token release',
+      'utf8'
+    );
+    await reindexFile('docs/launch.md');
+    const ctx = await assembleContextFor('alice', 'unique-proj-token release');
+    expect(ctx).toContain('# Project context');
+    expect(ctx).toContain('Launch Plan');
+    expect(ctx).toContain('unique-proj-token');
+  });
+
+  it('omits Project context in the no-embedder fallback', async () => {
+    setEmbedder(null);
+    await createNote({ title: 'Shared', body: 'shared body' });
+    const ctx = await assembleContextFor('alice', 'anything');
+    expect(ctx).not.toContain('# Project context');
   });
 });

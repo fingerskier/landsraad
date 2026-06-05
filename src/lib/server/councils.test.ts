@@ -61,20 +61,27 @@ describe('council', () => {
     expect(hasCouncil()).toBe(false);
   });
 
-  it('wipes every standard council subdir on reset', async () => {
+  it('removes the .landsraad/ machine on reset but leaves the product tree', async () => {
     const { writeFile, mkdir } = await import('node:fs/promises');
     const { existsSync } = await import('node:fs');
+    const { councilDataRoot } = await import('./paths');
     await createCouncil({ name: 'ToWipe' });
-    const subs = ['councillors', 'memory', 'jobs', '.index', 'proposals'];
+    const data = councilDataRoot();
+    const subs = ['councillors', 'memory', 'jobs', '.index', 'proposals', 'meetings', 'oeuvres', 'schedules'];
     for (const s of subs) {
-      await mkdir(join(tmpRoot, s), { recursive: true });
-      await writeFile(join(tmpRoot, s, 'sentinel.txt'), 'x', 'utf8');
+      await mkdir(join(data, s), { recursive: true });
+      await writeFile(join(data, s, 'sentinel.txt'), 'x', 'utf8');
     }
+    // Product-tree files and the root .env must survive a council reset.
+    await writeFile(join(tmpRoot, 'deliverable.md'), '# Keep me', 'utf8');
+    await writeFile(join(tmpRoot, '.env'), 'OPENAI_API_KEY=x', 'utf8');
+
     await deleteCouncilData();
-    for (const s of subs) {
-      expect(existsSync(join(tmpRoot, s))).toBe(false);
-    }
+
+    expect(existsSync(data)).toBe(false);
     expect(hasCouncil()).toBe(false);
+    expect(existsSync(join(tmpRoot, 'deliverable.md'))).toBe(true);
+    expect(existsSync(join(tmpRoot, '.env'))).toBe(true);
   });
 });
 

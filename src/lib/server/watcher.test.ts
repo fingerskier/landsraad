@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 
 import { createCouncil } from './councils';
 import type { Embedder } from './embeddings';
-import { closeAll, indexSearch, setEmbedder } from './indexer';
+import { closeAll, indexListFiles, indexSearch, setEmbedder } from './indexer';
 import { reindexFile } from './reconcile';
 import { startIndexWatcher, stopIndexWatcher } from './watcher';
 
@@ -81,26 +81,55 @@ function waitUntil(fn: () => Promise<boolean>, timeoutMs = 4000): Promise<void> 
 describe('index watcher', () => {
   it('indexes a file created after the watcher starts', async () => {
     startIndexWatcher(root);
-    write('memory/live.md', '# Live\n\nunique-live indexed by watcher');
+    write('.landsraad/memory/live.md', '# Live\n\nunique-live indexed by watcher');
     await waitUntil(async () => (await indexSearch('unique-live')).length > 0);
     expect((await indexSearch('unique-live'))[0].ref_id).toBe('live');
   });
 
+  it('indexes product .md/.txt but not code', async () => {
+    startIndexWatcher(root);
+    write('src/app.ts', 'const token = "unique-product-code";');
+    write('README.md', '# Readme\n\nunique-product-doc body');
+    await waitUntil(async () => indexListFiles().some((f) => f.ref_id === 'README.md'));
+    const indexed = indexListFiles();
+    expect(indexed.find((f) => f.ref_id === 'README.md')?.kind).toBe('project_file');
+    // Code is the product, not semantic memory — never indexed.
+    expect(indexed.map((f) => f.ref_id)).not.toContain('src/app.ts');
+  });
+
+  it('respects the root .gitignore for the product tree', async () => {
+    write('.gitignore', 'private/\n');
+    write('private/secret.md', '# Secret\n\nunique-gitignored body');
+    write('public/note.md', '# Note\n\nunique-public body');
+    startIndexWatcher(root);
+    await waitUntil(async () => indexListFiles().some((f) => f.ref_id === 'public/note.md'));
+    await settle(300); // let any (wrongly) un-ignored sibling drain before asserting absence
+    expect(indexListFiles().map((f) => f.ref_id)).not.toContain('private/secret.md');
+  });
+
+  it('always indexes .landsraad/ even when .gitignore excludes it', async () => {
+    write('.gitignore', '.landsraad/\n');
+    write('.landsraad/memory/secret-mem.md', '# Mem\n\nunique-machine-mem body');
+    startIndexWatcher(root);
+    await waitUntil(async () => (await indexSearch('unique-machine-mem')).length > 0);
+    expect((await indexSearch('unique-machine-mem'))[0].kind).toBe('memory');
+  });
+
   it('removes a file on unlink', async () => {
-    write('memory/temp.md', '# Temp\n\nunique-temp body');
+    write('.landsraad/memory/temp.md', '# Temp\n\nunique-temp body');
     startIndexWatcher(root);
     await waitUntil(async () => (await indexSearch('unique-temp')).length > 0);
-    unlinkSync(join(root, 'memory/temp.md'));
+    unlinkSync(join(root, '.landsraad/memory/temp.md'));
     await waitUntil(async () => (await indexSearch('unique-temp')).length === 0);
     expect(await indexSearch('unique-temp')).toEqual([]);
   });
 
   it('prunes orphan chunks for files deleted while stopped', async () => {
-    write('memory/orphan.md', '# Orphan\n\nunique-orphan body');
-    await reindexFile('memory/orphan.md');
+    write('.landsraad/memory/orphan.md', '# Orphan\n\nunique-orphan body');
+    await reindexFile('.landsraad/memory/orphan.md');
     expect((await indexSearch('unique-orphan')).length).toBe(1);
     // delete the file while no watcher is running, then start
-    unlinkSync(join(root, 'memory/orphan.md'));
+    unlinkSync(join(root, '.landsraad/memory/orphan.md'));
     startIndexWatcher(root);
     await waitUntil(async () => (await indexSearch('unique-orphan')).length === 0);
     expect(await indexSearch('unique-orphan')).toEqual([]);
@@ -113,7 +142,7 @@ describe('index watcher', () => {
 
   it('skips re-embedding an unchanged file on watcher restart', async () => {
     // Index the file with a live watcher so source_mtime is recorded
-    write('memory/keep.md', '# Keep\n\nunique-keep body');
+    write('.landsraad/memory/keep.md', '# Keep\n\nunique-keep body');
     startIndexWatcher(root);
     await waitUntil(async () => (await indexSearch('unique-keep')).length > 0);
     await stopIndexWatcher();
@@ -134,7 +163,7 @@ describe('index watcher', () => {
 
   it('re-embeds a file whose mtime changed while stopped', async () => {
     // Index the file with a live watcher
-    write('memory/change.md', '# Change\n\nunique-change-v1 body');
+    write('.landsraad/memory/change.md', '# Change\n\nunique-change-v1 body');
     startIndexWatcher(root);
     await waitUntil(async () => (await indexSearch('unique-change-v1')).length > 0);
     await stopIndexWatcher();
@@ -142,7 +171,7 @@ describe('index watcher', () => {
     const baseline = embedCount;
 
     // Mutate the file AND force a future mtime so it differs from the manifest value
-    const abs = join(root, 'memory/change.md');
+    const abs = join(root, '.landsraad/memory/change.md');
     writeFileSync(abs, '# Change\n\nunique-change-v2 body', 'utf8');
     const futureMtime = new Date(Date.now() + 2000);
     utimesSync(abs, futureMtime, futureMtime);

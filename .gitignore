@@ -146,17 +146,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-# Local Landsraad council scaffolding (anchored to repo root; when cwd is the council root,
-# e.g. `npm run dev` in this repo, the app writes these here)
-/council.json
-/councillors/
-/memory/
-/jobs/
-/proposals/
-/meetings/
-/schedules/
-/oeuvres/
-/.index/
+# Local Landsraad council scaffolding. When cwd is the council root (e.g. `npm run dev`
+# in this repo), the app writes the council machine under .landsraad/.
+/.landsraad/
 
 # dogfood:init target dirs
 /dogfood/

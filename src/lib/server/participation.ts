@@ -1,5 +1,6 @@
-import { appendFile, readFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { meetingsIncomingFile } from './paths';
 
 export interface IncomingParticipation {
@@ -11,9 +12,11 @@ export interface IncomingParticipation {
   exit_code: number;
 }
 
-/** Append one summon audit record to <council-root>/meetings-incoming.jsonl. */
+/** Append one summon audit record to <council-root>/.landsraad/meetings-incoming.jsonl. */
 export async function appendIncomingParticipation(rec: IncomingParticipation): Promise<void> {
-  await appendFile(meetingsIncomingFile(), JSON.stringify(rec) + '\n', 'utf8');
+  const file = meetingsIncomingFile();
+  await mkdir(dirname(file), { recursive: true });
+  await appendFile(file, JSON.stringify(rec) + '\n', 'utf8');
 }
 
 export async function readIncomingParticipation(): Promise<IncomingParticipation[]> {

@@ -28,9 +28,9 @@ A future SDK embedder (`sdk:openai`, `sdk:cohere`) will conform to the same `Emb
 
 ## Storage Model
 
-DB lives at `<council-root>/.index/embeddings.db`, where `<council-root>` is the Landsraad process's cwd (or `LANDSRAAD_COUNCIL_ROOT`).
+DB lives at `<council-root>/.landsraad/.index/embeddings.db`, where `<council-root>` is the Landsraad process's cwd (or `LANDSRAAD_COUNCIL_ROOT`). All council state nests under `.landsraad/`.
 
-Deleting the council (rm `council.json`, `councillors/`, etc. — or removing the whole directory) removes the index with it. `.index/` is git-ignored (the index is regenerable).
+Deleting the council (rm the `.landsraad/` directory) removes the index with it. `.landsraad/` is git-ignored (the index is regenerable).
 
 ### Schema
 
@@ -73,12 +73,17 @@ Examples:
 
 | Logical key | Source file |
 |---|---|
-| `memory/house-rules#0` | `<council>/memory/house-rules.md` |
-| `memory_private/q1-fcf-watchlist#0` | `<council>/councillors/cfo/memory/q1-fcf-watchlist.md` |
-| `job_input/2026-05-22T14-30-00Z-q1-summary#0` | `<council>/jobs/.../input.md` |
-| `job_output/2026-05-22T14-30-00Z-q1-summary#0` | `<council>/jobs/.../output.md` |
-| `transcript/2026-05-22T14-30-00Z-q1-summary#0` | `<council>/jobs/.../transcript.md` |
-| `persona/mocky#0` | `<council>/councillors/mocky/persona.md` |
+| `memory/house-rules#0` | `<council>/.landsraad/memory/house-rules.md` |
+| `memory_private/q1-fcf-watchlist#0` | `<council>/.landsraad/councillors/cfo/memory/q1-fcf-watchlist.md` |
+| `job_input/2026-05-22T14-30-00Z-q1-summary#0` | `<council>/.landsraad/jobs/.../input.md` |
+| `job_output/2026-05-22T14-30-00Z-q1-summary#0` | `<council>/.landsraad/jobs/.../output.md` |
+| `transcript/2026-05-22T14-30-00Z-q1-summary#0` | `<council>/.landsraad/jobs/.../transcript.md` |
+| `persona/mocky#0` | `<council>/.landsraad/councillors/mocky/persona.md` |
+| `project_file/docs/launch-plan.md#0` | `<council>/docs/launch-plan.md` (product tree, not `.landsraad/`) |
+
+`project_file` chunks come from the **product tree** — `.md`/`.txt` in the working
+directory itself (`ref_id` is the council-root-relative path), gitignore-respecting.
+All other kinds come from the council machine under `.landsraad/`.
 
 The council is implicit: each council root owns its own DB. If we ever flip to a global index, prepend a council identifier as another column — no logical-key rewrite.
 
@@ -115,7 +120,7 @@ Hooks are best-effort: an embedding failure logs but does not abort the user-fac
 npm run reindex -- <council-root>
 ```
 
-Walks `<council-root>/memory/`, `<council-root>/councillors/*/persona.md`, `<council-root>/councillors/*/memory/*.md`, and `<council-root>/jobs/*/{input,output,transcript}.md`. For each file:
+Walks `<council-root>/.landsraad/memory/`, `<council-root>/.landsraad/councillors/*/persona.md`, `<council-root>/.landsraad/councillors/*/memory/*.md`, and `<council-root>/.landsraad/jobs/*/{input,output,transcript}.md`. For each file:
 
 1. Compute `text_hash`. If a chunk row exists with the same hash, skip.
 2. Otherwise embed, upsert chunk + vector, update `source_mtime`.

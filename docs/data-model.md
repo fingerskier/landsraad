@@ -1,35 +1,41 @@
 # Data model
 
-Everything is on-disk under the **council root**, which is the Landsraad process's cwd (override with `LANDSRAAD_COUNCIL_ROOT`). One council per directory.
+Everything is on-disk under the **council root**, which is the Landsraad process's cwd (override with `LANDSRAAD_COUNCIL_ROOT`). One council per directory. The council's own state lives under a single hidden **`.landsraad/`** directory (`councilDataRoot()`); the council root itself holds the **product** the council assembles. Only `.env` and `.gitignore` sit at the root.
 
 ## Layout
 
 ```
-<council-root>/
-  council.json
-  councillors/
-    <councillor-slug>/
-      councillor.json
-      persona.md
-      memory/
-        <entry-slug>.md       # private per-councillor memory (reflection-created)
-  memory/
-    <note-slug>.md             # shared memory
-  jobs/
-    <job-id>/
-      job.json
-      input.md
-      transcript.md
-      output.md
-      events.jsonl
-  proposals/
+<council-root>/                  # the product (your files); adapter cwd
+  .env                           # adapter keys etc. — at the root, never indexed
+  .gitignore
+  .landsraad/                    # the council machine (councilDataRoot)
+    council.json
+    councillors/
+      <councillor-slug>/
+        councillor.json
+        persona.md
+        memory/
+          <entry-slug>.md        # private per-councillor memory (reflection-created)
+    memory/
+      <note-slug>.md             # shared memory
     jobs/
-      <timestamp>-<slug>.json  # <<JOB>> proposals
-  schedules/
-    <schedule-id>.json         # one declaration per file
-    <schedule-id>.events.jsonl # fire / skip / error log
-  .index/
-    embeddings.db
+      <job-id>/
+        job.json
+        input.md
+        transcript.md
+        output.md
+        events.jsonl
+    proposals/
+      jobs/
+        <timestamp>-<slug>.json  # <<JOB>> proposals
+    schedules/
+      <schedule-id>.json         # one declaration per file
+      <schedule-id>.events.jsonl # fire / skip / error log
+    meetings/<meeting-id>/…      # see SPECIFICATION.md
+    meetings-incoming.jsonl      # peer-summon audit log
+    oeuvres/<oeuvre-id>/…        # see SPECIFICATION.md
+    .index/
+      embeddings.db
 ```
 
 Councillor, note, and private-memory entry slugs are derived from titles/names via the shared `slugify()` in `src/lib/server/paths.ts`: lowercased, non-alphanumerics collapsed to `-`, capped at 64 chars. Slugs never change after creation — renames update the JSON file's `name` but keep the slug stable. On slug collision during reflection or template install, a `-2`, `-3`, … suffix is appended.
@@ -191,7 +197,7 @@ Failure pause reasons recorded in `events.jsonl` for remote-turn failures:
 
 ## `meetings-incoming.jsonl`
 
-Peer audit log written at the **council root** (not inside a meeting directory). One line per summoned turn served:
+Peer audit log written at the **council data root** (`.landsraad/meetings-incoming.jsonl`, not inside a meeting directory). One line per summoned turn served:
 
 ```json
 { "ts": "2026-05-30T12:00:00.000Z", "host_council": "beta", "meeting_id": "2026-...", "councillor_slug": "cfo", "duration_ms": 1234, "exit_code": 0 }

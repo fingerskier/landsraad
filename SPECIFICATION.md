@@ -10,7 +10,7 @@ Landsraad is a local-first **council** of AI agents working toward a common goal
 A council is a group of agents working with a human director (you).
 The app is an `npx`-launchable Node.js + TypeScript application (SvelteKit) that lets the director configure councillors, **assign jobs to them, keep shared memory, and watch the council work**.
 
-**One council per working directory.** When you run `npx landsraad`, the current working directory **is** the council root — `council.json`, `councillors/`, `memory/`, `jobs/`, and `.index/` all sit at _cwd_.
+**One council per working directory.** When you run `npx landsraad`, the current working directory **is** the council root. The council's own state — `council.json`, `councillors/`, `memory/`, `jobs/`, `.index/`, … — lives in a single hidden **`.landsraad/`** directory at _cwd_. This keeps the working directory itself clear for the **product** the council assembles (your docs, CSVs, code): the council is the machine, not the product. Only `.env` and `.gitignore` sit at the root. Adapters still run with `cwd` = the council root, so councillors work directly in the product tree.
 Want more than one council?
 Use more than one directory.
 
@@ -115,11 +115,29 @@ single source of truth. Writers only write files; they never call the indexer. A
 chokidar watcher (`src/lib/server/watcher.ts`) re-derives index chunks from a
 path→kind source registry (`src/lib/server/index-sources.ts`) on add/change/unlink.
 
+**What gets indexed.** The watcher watches the whole council root and indexes two things:
+
+1. **The council machine** — everything under `.landsraad/` (memory, personas, job
+   `input`/`output`/`transcript`, meeting topics/turns/summaries/syntheses, oeuvre
+   scratchpads). Always indexed, regardless of `.gitignore` — it is the council's own
+   data. Its `.index/` db is never indexed.
+2. **The product** — prose files in the working directory itself: `.md` and `.txt`
+   only (kind `project_file`), so the council can retrieve over the docs it is
+   assembling. This is **semantic memory**, not a code search engine: code, CSVs, and
+   binaries are deliberately excluded (adapters already see the tree via their own
+   cwd + tools). The product walk **respects the root `.gitignore`** (so secrets and
+   build output stay out of the index) and skips dot-dirs and `node_modules`. Files
+   over `LANDSRAAD_INDEX_MAX_FILE_BYTES` (default 512 KB) are skipped. The **root**
+   `.gitignore` only is honored (nested `.gitignore` files are a follow-up), and it is
+   read at watcher start — edits take effect on restart. Retrieval pulls
+   `LANDSRAAD_PROJECT_TOPK` (default 6) project hits into a `Project context` prompt
+   section, sharing the memory char budget.
+
 - On startup the watcher loads a manifest (`source_path → source_mtime`) and skips
   files whose mtime is unchanged; files indexed for paths that no longer exist are
   pruned (orphan sweep on `ready`).
-- Moving a finished job's `output.md` into `councillors/<slug>/memory/` therefore
-  re-kinds it as private memory automatically.
+- Moving a finished job's `output.md` into `.landsraad/councillors/<slug>/memory/`
+  therefore re-kinds it as private memory automatically.
 - Set `LANDSRAAD_WATCH=0` to disable the watcher (e.g. to avoid two processes
   writing the same `.index/` in development).
 
@@ -201,50 +219,55 @@ A built-in council for testing Landsraad itself. The CLI command `npm run dogfoo
 
 ## Storage Model
 
-The council root is the current working directory of the Landsraad process. Override with `LANDSRAAD_COUNCIL_ROOT=<path>` for tests or to point a dev server at a non-cwd council.
+The council root is the current working directory of the Landsraad process. Override with `LANDSRAAD_COUNCIL_ROOT=<path>` for tests or to point a dev server at a non-cwd council. **All of the council's own state lives under `<council-root>/.landsraad/`** — the machine, kept out of the way of the working directory (the product). Only `.env` and `.gitignore` sit at the root, and the adapter `cwd` stays the council root so councillors see the product directly.
 
 ```
-<council-root>/                  # = process.cwd() (or LANDSRAAD_COUNCIL_ROOT)
-  council.json                   # slug, name, description, template, created_at
-  councillors/
-    <councillor-slug>/
-      councillor.json            # slug, name, role, routing_hint, adapter, reflect, created_at
-      persona.md
-      memory/                    # private per-councillor memory
-        <entry-slug>.md
-  memory/
-    <note-slug>.md               # shared notes
-  jobs/
-    <job-id>/                    # job-id is timestamped + slugged
-      job.json                   # id, title, councillor_slug, status, *_at, exit_code?, memory_slugs?, shared_memory_slugs?
-      input.md                   # assembled prompt sent to the adapter
-      transcript.md              # raw stdout (and stderr) from the adapter
-      output.md                  # final response (often === transcript.md, possibly trimmed)
-      events.jsonl               # one line per state transition or progress event
-  proposals/
+<council-root>/                  # = process.cwd() (or LANDSRAAD_COUNCIL_ROOT) — the product
+  .env                           # adapter API keys etc. — never indexed, never committed
+  .gitignore                     # the user's; governs the working directory
+  <your product files>           # docs, CSVs, code — the deliverables the council assembles
+  .landsraad/                    # the council machine — everything below lives here
+    council.json                 # slug, name, description, template, created_at
+    councillors/
+      <councillor-slug>/
+        councillor.json          # slug, name, role, routing_hint, adapter, reflect, created_at
+        persona.md
+        memory/                  # private per-councillor memory
+          <entry-slug>.md
+    memory/
+      <note-slug>.md             # shared notes
     jobs/
-      <timestamp>-<slug>.json    # <<JOB>> proposals; status pending|approved|rejected
-  schedules/
-    <schedule-id>.json           # one declaration per file
-    <schedule-id>.events.jsonl   # fire / skip / error log
-  meetings/
-    <meeting-id>/                # meeting-id is timestamped + slugged
-      meeting.json               # id, title, chair_slug, attendees, status, window_k, *_at, memory_slugs?, shared_memory_slugs?, proposed_jobs?
-      topic.md                   # director's brief for the round-table
-      transcript.md              # per-turn blocks appended as the meeting progresses
-      summary.md                 # chair-written rolling summary of displaced turns
-      synthesis.md               # chair-written closing synthesis (scanned for <<MEMORY>>/<<JOB>>)
-      events.jsonl               # one line per state transition or turn event
-  oeuvres/
-    <oeuvre-id>/                 # oeuvre-id is timestamped + slugged
-      oeuvre.json                # id, title, goal, leader_slug, participants, status, policy, scratchpad_version, text_bytes, *_at, memory bookkeeping
-      note.md                    # director's live, editable steering note
-      scratchpad.md              # the baton — current best artifact, revised by worker turns
-      participants.json          # per-participant vote + pool/health ledger (vote, out, failures)
-      turns.jsonl                # one line per leader-pick and per worker turn (links the turn's job)
-      events.jsonl               # one line per state transition or progress event
-  .index/
-    embeddings.db                # sqlite-vec index; regenerable
+      <job-id>/                  # job-id is timestamped + slugged
+        job.json                 # id, title, councillor_slug, status, *_at, exit_code?, memory_slugs?, shared_memory_slugs?
+        input.md                 # assembled prompt sent to the adapter
+        transcript.md            # raw stdout (and stderr) from the adapter
+        output.md                # final response (often === transcript.md, possibly trimmed)
+        events.jsonl             # one line per state transition or progress event
+    proposals/
+      jobs/
+        <timestamp>-<slug>.json  # <<JOB>> proposals; status pending|approved|rejected
+    schedules/
+      <schedule-id>.json         # one declaration per file
+      <schedule-id>.events.jsonl # fire / skip / error log
+    meetings/
+      <meeting-id>/              # meeting-id is timestamped + slugged
+        meeting.json             # id, title, chair_slug, attendees, status, window_k, *_at, memory_slugs?, shared_memory_slugs?, proposed_jobs?
+        topic.md                 # director's brief for the round-table
+        transcript.md            # per-turn blocks appended as the meeting progresses
+        summary.md               # chair-written rolling summary of displaced turns
+        synthesis.md             # chair-written closing synthesis (scanned for <<MEMORY>>/<<JOB>>)
+        events.jsonl             # one line per state transition or turn event
+    meetings-incoming.jsonl      # peer-summon audit log (cross-council meetings)
+    oeuvres/
+      <oeuvre-id>/               # oeuvre-id is timestamped + slugged
+        oeuvre.json              # id, title, goal, leader_slug, participants, status, policy, scratchpad_version, text_bytes, *_at, memory bookkeeping
+        note.md                  # director's live, editable steering note
+        scratchpad.md            # the baton — current best artifact, revised by worker turns
+        participants.json        # per-participant vote + pool/health ledger (vote, out, failures)
+        turns.jsonl              # one line per leader-pick and per worker turn (links the turn's job)
+        events.jsonl             # one line per state transition or progress event
+    .index/
+      embeddings.db              # sqlite-vec index; regenerable
 ```
 
 Job IDs are `<UTC-timestamp>-<title-slug>` (e.g. `2026-05-22T14-30-00Z-q1-summary`) — sortable, human-readable, unique enough for one-director scale.

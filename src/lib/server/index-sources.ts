@@ -149,9 +149,57 @@ const SOURCES: IndexSource[] = [
   }
 ];
 
+const DATA_PREFIX = '.landsraad/';
+
+/**
+ * Wrap a structured source so it sees the council-data-relative path (the
+ * `.landsraad/` prefix peeled off), while reconcile keeps passing the full
+ * `councilRoot()`-relative rel. This keeps every matcher regex and positional
+ * `split('/')` index in SOURCES unchanged after the layout move.
+ */
+function stripPrefix(src: IndexSource): IndexSource {
+  const inner = (rel: string) => norm(rel).slice(DATA_PREFIX.length);
+  return {
+    kind: src.kind,
+    test: (rel) => src.test(inner(rel)),
+    refId: (rel) => src.refId(inner(rel)),
+    buildChunks: (text, rel, absPath) => src.buildChunks(text, inner(rel), absPath)
+  };
+}
+
+/**
+ * Product-tree prose (`.md`/`.txt`) outside `.landsraad/` — the workspace the
+ * council assembles. Whole-file, one chunk (matching every structured source);
+ * the ref id is the council-root-relative path. Code, CSV, and binaries are
+ * deliberately excluded: the index is semantic memory, not a code search engine,
+ * and adapters already see the tree via their own cwd + file tools.
+ */
+const PROJECT_SOURCE: IndexSource = {
+  kind: 'project_file',
+  test: (rel) => /\.(md|txt)$/i.test(norm(rel)),
+  refId: (rel) => norm(rel),
+  buildChunks: (text, rel) => {
+    const name = basename(norm(rel));
+    return [
+      {
+        chunk_idx: 0,
+        text,
+        title: /\.md$/i.test(name) ? firstHeading(text, name) : name,
+        councillor_slug: null
+      }
+    ];
+  }
+};
+
 export function resolveSource(rel: string): IndexSource | null {
   const n = norm(rel);
-  return SOURCES.find((s) => s.test(n)) ?? null;
+  if (n.startsWith(DATA_PREFIX)) {
+    const inner = n.slice(DATA_PREFIX.length);
+    const src = SOURCES.find((s) => s.test(inner));
+    return src ? stripPrefix(src) : null;
+  }
+  // Product tree: index prose only (allowlist enforced here authoritatively).
+  return PROJECT_SOURCE.test(n) ? PROJECT_SOURCE : null;
 }
 
 export const __sourcesForTest = SOURCES;

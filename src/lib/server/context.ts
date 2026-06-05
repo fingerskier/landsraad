@@ -2,7 +2,7 @@ import { hasEmbedder, indexSearch } from './indexer';
 import { listNotes } from './memory';
 import { listPrivateNotes } from './memory_private';
 import { buildRosterSection } from './roster';
-import { MEMORY_CHAR_BUDGET, MEMORY_TOPK_PRIVATE, MEMORY_TOPK_SHARED } from './config';
+import { MEMORY_CHAR_BUDGET, MEMORY_TOPK_PRIVATE, MEMORY_TOPK_SHARED, PROJECT_TOPK } from './config';
 
 interface Entry {
   title: string;
@@ -17,19 +17,30 @@ function formatSection(header: string, entries: Entry[]): string {
   return [`# ${header}`, ...blocks].join('\n\n');
 }
 
-function applyBudget(shared: Entry[], priv: Entry[], budget: number): { shared: Entry[]; priv: Entry[] } {
-  let s = [...shared];
-  let p = [...priv];
+/**
+ * Evict the globally least-relevant entries (lowest cosine similarity, at each
+ * bucket's tail since hits arrive sorted desc) until the combined size fits the
+ * budget. Ties prefer evicting from earlier buckets (shared before private before
+ * project). Generalized over N buckets so memory and project context share one budget.
+ */
+function applyBudget(buckets: Entry[][], budget: number): Entry[][] {
+  const lists = buckets.map((b) => [...b]);
   const size = (e: Entry) => e.title.length + e.body.length + 16;
-  let total = () => s.reduce((a, e) => a + size(e), 0) + p.reduce((a, e) => a + size(e), 0);
-  while (total() > budget && (s.length || p.length)) {
-    const sLow = s.length ? s[s.length - 1].similarity : Infinity;
-    const pLow = p.length ? p[p.length - 1].similarity : Infinity;
-    if (sLow <= pLow && s.length) s.pop();
-    else if (p.length) p.pop();
-    else s.pop();
+  const total = () => lists.reduce((a, l) => a + l.reduce((s, e) => s + size(e), 0), 0);
+  while (total() > budget) {
+    let worst = -1;
+    let worstSim = Infinity;
+    for (let i = 0; i < lists.length; i++) {
+      const l = lists[i];
+      if (l.length && l[l.length - 1].similarity < worstSim) {
+        worstSim = l[l.length - 1].similarity;
+        worst = i;
+      }
+    }
+    if (worst === -1) break; // all empty
+    lists[worst].pop();
   }
-  return { shared: s, priv: p };
+  return lists;
 }
 
 async function fallback(councillorSlug: string): Promise<string> {
@@ -68,6 +79,7 @@ export async function assembleContextFor(councillorSlug: string, brief: string):
     k: MEMORY_TOPK_PRIVATE,
     councillor_slug: councillorSlug
   });
+  const projectHits = await indexSearch(brief, { kinds: ['project_file'], k: PROJECT_TOPK });
 
   const sharedEntries: Entry[] = sharedHits.map((h) => ({
     title: h.title ?? h.ref_id,
@@ -81,17 +93,28 @@ export async function assembleContextFor(councillorSlug: string, brief: string):
     body: h.text,
     similarity: h.similarity
   }));
+  // Project hits keep the full relative path as their slug — it's the useful citation.
+  const projectEntries: Entry[] = projectHits.map((h) => ({
+    title: h.title ?? h.ref_id,
+    slug: h.ref_id,
+    body: h.text,
+    similarity: h.similarity
+  }));
 
-  if (sharedEntries.length === 0 && privEntries.length === 0) {
+  if (sharedEntries.length === 0 && privEntries.length === 0 && projectEntries.length === 0) {
     const body = await fallback(councillorSlug);
     return [roster, body].filter(Boolean).join('\n\n');
   }
 
-  const { shared, priv } = applyBudget(sharedEntries, privEntries, MEMORY_CHAR_BUDGET);
+  const [shared, priv, project] = applyBudget(
+    [sharedEntries, privEntries, projectEntries],
+    MEMORY_CHAR_BUDGET
+  );
   const parts = [
     roster,
     formatSection('Shared council memory', shared),
-    formatSection('Your memory', priv)
+    formatSection('Your memory', priv),
+    formatSection('Project context', project)
   ].filter(Boolean);
   return parts.join('\n\n');
 }

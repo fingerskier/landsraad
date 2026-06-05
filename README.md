@@ -56,7 +56,7 @@ To stop the council, click the terminal window and press `Ctrl + C`.
 ## What's here
 
 - A SvelteKit + TypeScript app you run locally.
-- **One council per directory.** When you run `npx landsraad`, the current working directory **is** the council — `council.json`, `councillors/`, `memory/`, `jobs/`, `.index/` all sit at cwd.
+- **One council per directory.** When you run `npx landsraad`, the current working directory **is** the council. Its state (`council.json`, `councillors/`, `memory/`, `jobs/`, `.index/`, …) lives in a hidden `.landsraad/` folder at cwd; the working directory itself stays clear for your work product. Only `.env` and `.gitignore` sit at the root.
 - No accounts, no cloud, no telemetry. You are the only user. You are also the secretary.
 
 ---
@@ -74,7 +74,7 @@ mkdir my-council && cd my-council
 npx landsraad
 ```
 
-Open the URL it prints. The setup form creates `council.json` in the current directory.
+Open the URL it prints. The setup form creates the council under `.landsraad/` in the current directory.
 
 ## Development
 
@@ -88,15 +88,15 @@ npm run dev
 
 Open the URL it prints (Vite picks a port, usually `http://localhost:5173`).
 
-**`npm run dev` turns the cloned repo into a throwaway test council.** Because a council root is just `process.cwd()`, the dev server treats the repo checkout itself as the council. The first time you create councillors, jobs, or run a meeting, the app scaffolds the council files **right in your clone**:
+**`npm run dev` turns the cloned repo into a throwaway test council.** Because a council root is just `process.cwd()`, the dev server treats the repo checkout itself as the council. The first time you create councillors, jobs, or run a meeting, the app scaffolds the council machine under **`.landsraad/` right in your clone**:
 
 ```
-council.json      councillors/   memory/
-jobs/             proposals/     meetings/
-schedules/        oeuvres/       .index/
+.landsraad/
+  council.json   councillors/   memory/   jobs/
+  proposals/     meetings/      schedules/ oeuvres/   .index/
 ```
 
-All of these are **gitignored** (see [`.gitignore`](./.gitignore)), so your local experimentation never shows up in `git status` and can't be committed by accident. Hack freely — it's a scratch council.
+`.landsraad/` is **gitignored** (a single `/.landsraad/` line in [`.gitignore`](./.gitignore)), so your local experimentation never shows up in `git status` and can't be committed by accident. Hack freely — it's a scratch council.
 
 ### Target a different council directory
 
@@ -131,6 +131,8 @@ Honors `LANDSRAAD_COUNCIL_ROOT` (so `LANDSRAAD_COUNCIL_ROOT=./dogfood npm run re
 | `LANDSRAAD_MEETING_TURN_NUDGE` | _(empty)_ | Text appended to every meeting turn's speaker instruction. Set e.g. `"Be terse — 1-3 sentences."` to ask councillors for shorter responses in meetings. Read on the chair council, so one knob governs the whole meeting (local and remote attendees). Empty = no change. |
 | `LANDSRAAD_MEETING_MODEL` | _(empty)_ | Model for every meeting LLM call this server runs — attendee turns, rolling summaries, and the closing synthesis. Accepts a literal model id (`haiku`) or a service-agnostic tier (`lite`/`medium`/`heavy`) that each adapter maps to its own model (claude → haiku/sonnet/opus), so one tier means the same intent across a mixed fleet. A tier no-ops for adapters with no mapping (they fall back to the CLI default). A per-councillor `?model=` pin in the adapter string still wins. Per-process: each participating server reads its own value, so it also governs the turns it serves as a remote peer. Empty = each adapter's default model. |
 | `LANDSRAAD_REFLECT_TIMEOUT_MS` | `120000` | Time budget for the post-success reflection adapter call. Reflection runs while the job already reads `succeeded` but still holds the councillor lock (the lane shows `reflecting`); this cap stops a hung or slow model from pinning a councillor indefinitely. On timeout the job logs a `reflection_failed` event and the councillor is freed. |
+| `LANDSRAAD_PROJECT_TOPK` | `6` | How many product-tree (`project_file`) hits to pull into a job's `Project context` prompt section. The index covers `.md`/`.txt` in the working directory (respecting the root `.gitignore`), so councillors can retrieve over the docs they are assembling. Shares the memory char budget. |
+| `LANDSRAAD_INDEX_MAX_FILE_BYTES` | `512000` | Per-file size ceiling for indexing a product `.md`/`.txt`. Files larger than this are skipped (keeps one huge text file from dominating the index). Council artifacts under `.landsraad/` are unaffected. |
 | `LANDSRAAD_OEUVRE_MAX_TURNS` | `30` | Default worker-turn cap for a new oeuvre (the goal-driven work loop). The loop auto-concludes when it hits this. Set per-oeuvre in the New Oeuvre form. |
 | `LANDSRAAD_OEUVRE_MAX_WALL_MS` | `3600000` | Default wall-clock cap (ms) for a new oeuvre. |
 | `LANDSRAAD_OEUVRE_MAX_TEXT_BYTES` | `2000000` | Default cumulative prompt+output byte cap for a new oeuvre, surfaced in the UI as "Text KB/MB". A real byte count — not tokens, which CLI adapters don't report. |
@@ -196,7 +198,8 @@ src/
   routes/                  # SvelteKit pages — flat: /, /council, /councillors/*, /memory/*, /jobs/*
 scripts/
   dogfood-init.ts          # seed a council into ./dogfood (or a custom path)
-  reindex.ts               # rebuild the semantic index for a council root
+  reindex.ts               # manual rebuild of the .landsraad/ index (council artifacts only;
+                           #   product .md/.txt are indexed live by the watcher, not by this script)
 SPECIFICATION.md           # what the product is supposed to be
 docs/                      # architecture + data model + embeddings notes
 ```
