@@ -12,7 +12,7 @@ import {
   resumeOeuvre,
   startOeuvre
 } from './oeuvre-runner';
-import { createOeuvre, readOeuvre, readParticipants, readScratchpad, readOeuvreEvents, writeNote } from './oeuvres';
+import { createOeuvre, readOeuvre, readParticipants, readScratchpad, readOeuvreEvents, writeNote, writeOeuvre } from './oeuvres';
 import type { OeuvreStatus, OeuvreEventType } from '$lib/types';
 import { _resetForTests as resetLock } from './councillor-lock';
 import { createCouncil } from './councils';
@@ -332,6 +332,39 @@ describe('oeuvre-runner crash recovery', () => {
     await resumeOeuvre(o.id);
     expect(await waitForTerminal(o.id)).toBe('concluded');
     expect((await readScratchpad(o.id))).toContain('# P');
+  });
+
+  it('heals a legacy crash-failed oeuvre (failed + crashed_during=) into a resumable paused state', async () => {
+    installScripts({
+      's-leo': leaderPicker(['alice']),
+      's-alice': () => ({ stdout: '<<SCRATCHPAD>>\n# P\n<</SCRATCHPAD>>\n<<VOTE value="finish" reason="ok">>' })
+    });
+    const o = await createOeuvre({ title: 'Legacy', goal: 'g', leader_slug: 'leo', participants: ['alice'] });
+    // Reproduce the old build's mis-failure of a paused oeuvre.
+    const broken = await readOeuvre(o.id);
+    broken.status = 'failed';
+    broken.concluded_at = '2026-06-05T00:00:00.000Z';
+    broken.pause_reason = 'crashed_during=paused';
+    await writeOeuvre(broken);
+
+    await recoverOeuvres();
+    const healed = await readOeuvre(o.id);
+    expect(healed.status).toBe('paused');
+    expect(healed.concluded_at).toBeNull();
+
+    // ...and it actually resumes to completion.
+    await resumeOeuvre(o.id);
+    expect(await waitForTerminal(o.id)).toBe('concluded');
+  });
+
+  it('leaves a failed oeuvre with no crash marker terminal (does not revive)', async () => {
+    const o = await createOeuvre({ title: 'Dead', goal: 'g', leader_slug: 'leo', participants: ['alice'] });
+    const dead = await readOeuvre(o.id);
+    dead.status = 'failed';
+    dead.pause_reason = undefined;
+    await writeOeuvre(dead);
+    await recoverOeuvres();
+    expect((await readOeuvre(o.id)).status).toBe('failed');
   });
 
   it('leaves a director-paused oeuvre paused on restart (not marked crashed)', async () => {

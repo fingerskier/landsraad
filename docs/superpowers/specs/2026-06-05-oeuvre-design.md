@@ -253,7 +253,7 @@ Parsed with the same whitespace-tolerant, unknown-tag-ignoring discipline as the
 
 - **cancel**: status → `cancelled`. Abort any in-flight turn (same `AbortController` path as job cancel). Release locks. No consolidation.
 
-- **Server restart**: an `active|concluding` oeuvre on boot is **crash-parked** → `paused` (`pause_reason="crashed_during=<status>"`), locks reset, wall-clock folded up to the last recorded event so downtime doesn't burn the budget. A `paused` oeuvre stays paused. No *auto*-resume (a wedged adapter mustn't thrash on boot), but unlike jobs/meetings the durable scratchpad/votes/turns let the director **Resume** the loop from where it stopped.
+- **Server restart**: an `active|concluding` oeuvre on boot is **crash-parked** → `paused` (`pause_reason="crashed_during=<status>"`), locks reset, wall-clock folded up to the last recorded event so downtime doesn't burn the budget. A `paused` oeuvre stays paused. No *auto*-resume (a wedged adapter mustn't thrash on boot), but unlike jobs/meetings the durable scratchpad/votes/turns let the director **Resume** the loop from where it stopped. **Migration:** an oeuvre left `failed` by an earlier build's crash-recovery (the only producer of `failed`, always stamped `crashed_during=`) is healed back to `paused` on boot so it becomes resumable again.
 
 ### Consolidation
 

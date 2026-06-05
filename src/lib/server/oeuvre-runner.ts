@@ -541,6 +541,21 @@ export async function cancelOeuvre(id: string, now: Date = new Date()): Promise<
 export async function recoverOeuvres(now: Date = new Date()): Promise<void> {
   const all = await listOeuvres();
   for (const o of all) {
+    // Heal oeuvres a PRIOR build's crash-recovery wrongly marked terminal-`failed`.
+    // That code was the only producer of `failed`, and always stamped a
+    // `crashed_during=` reason — so such an oeuvre is a crash victim with durable
+    // state, not a real failure. Revive it to `paused` so the director can Resume.
+    if (o.status === 'failed' && (o.pause_reason ?? '').startsWith('crashed_during=')) {
+      o.status = 'paused';
+      o.concluded_at = null;
+      await writeOeuvre(o);
+      await appendOeuvreEvent(o.id, {
+        at: now.toISOString(),
+        type: 'note',
+        message: 'recovered: failed→paused (resumable)'
+      });
+      continue;
+    }
     if (isTerminal(o.status)) continue;
     // A deliberately director-paused oeuvre simply survives the restart as-is —
     // it didn't crash, so don't relabel or stop its (already-stopped) clock.
