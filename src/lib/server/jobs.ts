@@ -2,7 +2,7 @@ import { appendFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promise
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Job, JobEvent, JobStatus } from '$lib/types';
-import { jobDir, jobIdFor, jobsDir } from './paths';
+import { jobDir, jobIdFor, jobsDir, redactRoot } from './paths';
 import { hasCouncil } from './councils';
 
 const JOB_FILE = 'job.json';
@@ -108,7 +108,7 @@ export async function readInput(jobId: string): Promise<string> {
 }
 
 export async function appendTranscript(jobId: string, text: string): Promise<void> {
-  await appendFile(join(jobDir(jobId), TRANSCRIPT_FILE), text, 'utf8');
+  await appendFile(join(jobDir(jobId), TRANSCRIPT_FILE), redactRoot(text), 'utf8');
 }
 
 export async function readTranscript(jobId: string): Promise<string> {
@@ -118,7 +118,7 @@ export async function readTranscript(jobId: string): Promise<string> {
 
 export async function writeOutput(jobId: string, body: string): Promise<void> {
   const file = join(jobDir(jobId), OUTPUT_FILE);
-  await writeFile(file, body, 'utf8');
+  await writeFile(file, redactRoot(body), 'utf8');
 }
 
 export async function readOutput(jobId: string): Promise<string> {

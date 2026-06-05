@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { env } from 'node:process';
 import {
   councilRoot,
@@ -14,7 +15,8 @@ import {
   schedulesDir,
   meetingsDir,
   meetingsIncomingFile,
-  oeuvresDir
+  oeuvresDir,
+  redactRoot
 } from './paths';
 
 const ROOT = join('/tmp', 'landsraad-paths-fixture');
@@ -56,5 +58,33 @@ describe('paths — .landsraad/ layout', () => {
   it('keeps .env at the product root (not under .landsraad/)', () => {
     expect(councilEnvFile()).toBe(join(ROOT, '.env'));
     expect(councilEnvFile().startsWith(councilDataRoot())).toBe(false);
+  });
+});
+
+describe('redactRoot — strip machine-identifying absolute paths', () => {
+  it('replaces a bare council root with "."', () => {
+    expect(redactRoot(`workdir: ${ROOT}`)).toBe('workdir: .');
+  });
+
+  it('rewrites a council-root path prefix to a relative path, keeping the slash', () => {
+    expect(redactRoot(`[x](${ROOT}/src/lib/server/paths.ts:12)`)).toBe(
+      '[x](./src/lib/server/paths.ts:12)'
+    );
+  });
+
+  it('replaces the home directory with "~" when it appears outside the council root', () => {
+    expect(redactRoot(`config at ${homedir()}/.landsraad/instances.json`)).toBe(
+      'config at ~/.landsraad/instances.json'
+    );
+  });
+
+  it('leaves text with no machine paths untouched', () => {
+    const text = 'Renamed the `factcheck` role to `skeptic` in example/writing-team.template.json.';
+    expect(redactRoot(text)).toBe(text);
+  });
+
+  it('does not mangle a sibling directory that merely shares the root prefix', () => {
+    const text = `${ROOT}-backup/notes.md`;
+    expect(redactRoot(text)).toBe(`${ROOT}-backup/notes.md`);
   });
 });

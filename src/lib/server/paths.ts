@@ -1,8 +1,35 @@
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { cwd, env } from 'node:process';
 
 export function councilRoot(): string {
   return env.LANDSRAAD_COUNCIL_ROOT || cwd();
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Strip machine-identifying absolute paths from agent-emitted text before it is
+ * persisted (transcripts, outputs, summaries). The council root becomes `.` and
+ * the home directory becomes `~`, so committed artifacts (e.g. the bundled
+ * exemplar council) never leak a username or local filesystem layout.
+ *
+ * Matches only at a path boundary (a following `/`, whitespace, end, or common
+ * punctuation), so a sibling directory that merely shares the prefix — e.g.
+ * `<root>-backup` — is left intact.
+ */
+export function redactRoot(text: string): string {
+  // Council root first; it is typically nested under home, so replacing it before
+  // the home pass avoids double-rewriting the same path.
+  let out = text;
+  for (const abs of [councilRoot(), homedir()]) {
+    if (!abs) continue;
+    const rel = abs === homedir() ? '~' : '.';
+    out = out.replace(new RegExp(escapeRegExp(abs) + `(?=/|[\\s)\\]"':,]|$)`, 'g'), rel);
+  }
+  return out;
 }
 
 /**

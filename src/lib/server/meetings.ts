@@ -2,7 +2,7 @@ import { appendFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promise
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Meeting, MeetingEvent, MeetingStatus, RemoteAttendee } from '$lib/types';
-import { meetingDir, meetingIdFor, meetingsDir } from './paths';
+import { meetingDir, meetingIdFor, meetingsDir, redactRoot } from './paths';
 import { hasCouncil } from './councils';
 import { readCouncillor } from './councillors';
 
@@ -137,7 +137,7 @@ export interface TranscriptBlock {
 export async function appendTranscriptBlock(id: string, block: TranscriptBlock): Promise<void> {
   const file = join(meetingDir(id), TRANSCRIPT_FILE);
   const text = `\n## Turn ${block.turnIndex} — ${block.speaker} — ${block.at}\n\n${block.body.trim()}\n`;
-  await appendFile(file, text, 'utf8');
+  await appendFile(file, redactRoot(text), 'utf8');
 }
 
 export async function readTranscript(id: string): Promise<string> {
@@ -149,7 +149,7 @@ export async function readTopic(id: string): Promise<string> {
 }
 
 export async function writeSummary(id: string, body: string): Promise<void> {
-  await writeFile(join(meetingDir(id), SUMMARY_FILE), body, 'utf8');
+  await writeFile(join(meetingDir(id), SUMMARY_FILE), redactRoot(body), 'utf8');
 }
 
 export async function readSummary(id: string): Promise<string> {
@@ -157,7 +157,7 @@ export async function readSummary(id: string): Promise<string> {
 }
 
 export async function writeSynthesis(id: string, body: string): Promise<void> {
-  await writeFile(join(meetingDir(id), SYNTHESIS_FILE), body, 'utf8');
+  await writeFile(join(meetingDir(id), SYNTHESIS_FILE), redactRoot(body), 'utf8');
 }
 
 export async function readSynthesis(id: string): Promise<string> {

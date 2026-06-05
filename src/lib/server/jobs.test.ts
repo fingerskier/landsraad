@@ -165,4 +165,19 @@ describe('jobs', () => {
     });
     expect(j.spawned_by_schedule_id ?? null).toBeNull();
   });
+
+  it('redacts the council root from transcript and output on write', async () => {
+    const j = await createJob({ title: 'Redact', brief: 'b', councillor_slug: 'cfo' });
+    await appendTranscript(j.id, `[stderr] workdir: ${tmpRoot}\n`);
+    await writeOutput(j.id, `Edited ${tmpRoot}/example/writing-team.template.json`);
+
+    const { readTranscript, readOutput } = await import('./jobs');
+    const transcript = await readTranscript(j.id);
+    const output = await readOutput(j.id);
+
+    expect(transcript).not.toContain(tmpRoot);
+    expect(transcript).toBe('[stderr] workdir: .\n');
+    expect(output).not.toContain(tmpRoot);
+    expect(output).toBe('Edited ./example/writing-team.template.json');
+  });
 });

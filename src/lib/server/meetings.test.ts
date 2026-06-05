@@ -89,6 +89,24 @@ describe('meetings', () => {
     await writeSynthesis(m.id, 'final synth');
   });
 
+  it('redacts the council root from transcript blocks and summaries on write', async () => {
+    const root = process.env.LANDSRAAD_COUNCIL_ROOT!;
+    const m = await createMeeting({ title: 'S', topic: 't', chair_slug: 'leto', attendees: ['leto'], window_k: 2 });
+    await appendTranscriptBlock(m.id, {
+      turnIndex: 1,
+      speaker: 'leto',
+      at: '2026-05-28T00:00:00.000Z',
+      body: `Saw it in ${root}/src/lib/server/paths.ts`
+    });
+    await writeSummary(m.id, `Decision logged under ${root}`);
+
+    const transcript = await readTranscript(m.id);
+    const summary = await readSummary(m.id);
+    expect(transcript).not.toContain(root);
+    expect(transcript).toContain('./src/lib/server/paths.ts');
+    expect(summary).toBe('Decision logged under .');
+  });
+
   it('listMeetings returns newest-first', async () => {
     await createMeeting({ title: 'A', topic: 't', chair_slug: 'leto', attendees: ['leto'], window_k: 2 }, new Date('2026-05-28T00:00:00Z'));
     await new Promise((r) => setTimeout(r, 10));

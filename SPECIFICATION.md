@@ -280,6 +280,7 @@ The app never writes outside the council root. It never writes secrets to disk. 
 - At most one running job per councillor. Multiple councillors in the same council can run in parallel.
 - Newly created jobs trigger a pickup tick. Crashed/orphaned `running` jobs at server start are not auto-resumed; they are flipped to `failed` with a note (no resume in v1).
 - The runner spawns the adapter with `cwd` = the council directory and `env` = the SvelteKit server's env. stdout/stderr stream into `transcript.md`. On exit, the runner writes `output.md`, sets status, appends a final event.
+- **Path redaction.** Agent-emitted text is passed through `redactRoot()` (`src/lib/server/paths.ts`) before it lands on disk — in job `transcript.md`/`output.md` and meeting transcript blocks/summary/synthesis. The council root is rewritten to `.` and the home directory to `~`, so committed artifacts (e.g. the bundled exemplar council) never leak a username or local filesystem layout. Matching is path-boundary-aware, so a sibling dir sharing the prefix is left intact.
 - Cancellation: form action sends SIGTERM. After a short grace window, SIGKILL.
 
 ## UI Surfaces (v1)
