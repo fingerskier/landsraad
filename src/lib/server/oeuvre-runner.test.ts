@@ -16,7 +16,8 @@ import type { OeuvreStatus, OeuvreEventType } from '$lib/types';
 import { _resetForTests as resetLock } from './councillor-lock';
 import { createCouncil } from './councils';
 import { createCouncillor } from './councillors';
-import type { ResolvedAdapter } from './adapters';
+import type { ResolvedAdapter, ResolveAdapterOpts } from './adapters';
+import { MEETING_MODEL } from './config';
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -312,5 +313,42 @@ describe('oeuvre-runner crash recovery', () => {
     const final = await readOeuvre(o.id);
     expect(final.status).toBe('failed');
     expect(final.pause_reason).toContain('crashed_during=active');
+  });
+});
+
+describe('oeuvre-runner applies LANDSRAAD_MEETING_MODEL', () => {
+  beforeEach(setup);
+
+  it('resolves every oeuvre LLM call (leader pick, worker turn, consolidation) with the meeting model as modelDefault', async () => {
+    const seenOpts: Array<ResolveAdapterOpts | undefined> = [];
+    const scripts: Record<string, Script> = {
+      's-leo': leaderPicker(['alice']),
+      's-alice': () => ({ stdout: '<<SCRATCHPAD>>\n# P\n<</SCRATCHPAD>>\n<<VOTE value="finish" reason="ok">>' })
+    };
+    _setAdapterResolverForTests((adapterId, opts): ResolvedAdapter | null => {
+      seenOpts.push(opts);
+      const fn = scripts[adapterId];
+      if (!fn) return null;
+      return {
+        id: adapterId,
+        kind: 'mock',
+        run: ({ prompt }) => {
+          const r = fn(prompt);
+          async function* chunks() {
+            if (r.stdout) yield { stream: 'stdout' as const, text: r.stdout };
+          }
+          return { chunks: chunks(), result: Promise.resolve({ exit_code: 0, stdout: r.stdout, stderr: '' }) };
+        }
+      };
+    });
+
+    const o = await startOeuvre({ title: 'Model', goal: 'g', leader_slug: 'leo', participants: ['alice'] });
+    await waitForTerminal(o.id);
+
+    // At minimum: one leader pick + one worker turn + one consolidation call.
+    expect(seenOpts.length).toBeGreaterThanOrEqual(3);
+    // Every resolve carries the host-wide meeting model (default '' in tests), proving
+    // the wiring — an unwired call site would pass `undefined` and fail this.
+    expect(seenOpts.every((opts) => opts?.modelDefault === MEETING_MODEL)).toBe(true);
   });
 });

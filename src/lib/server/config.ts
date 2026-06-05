@@ -28,18 +28,21 @@ export const MEETING_SUMMARY_TIMEOUT_MS = envInt('LANDSRAAD_MEETING_SUMMARY_TIME
 export const PEER_DISCOVERY_TIMEOUT_MS = envInt('LANDSRAAD_PEER_DISCOVERY_TIMEOUT_MS', 2_000);
 
 /**
- * Appended to every meeting turn's speaker instruction. Empty by default.
- * Set e.g. `LANDSRAAD_MEETING_TURN_NUDGE="Be terse — 1-3 sentences."` to ask
- * councillors for shorter responses during meetings. Chair-side only — one
- * knob governs the whole meeting, including remote peers.
+ * Appended to every meeting turn's speaker instruction and every oeuvre worker
+ * turn brief. Empty by default. Set e.g.
+ * `LANDSRAAD_MEETING_TURN_NUDGE="Be terse — 1-3 sentences."` to ask councillors
+ * for shorter responses during councillor collaboration. Chair-side only — one
+ * knob governs the whole meeting (including remote peers) and the oeuvre loop.
  */
 export const MEETING_TURN_NUDGE = envStr('LANDSRAAD_MEETING_TURN_NUDGE', '');
 
 /**
- * Host-wide model override for meeting turns. Empty by default. When set, every
- * meeting LLM call this server runs — attendee turns, rolling summaries, and the
- * closing synthesis — uses this model instead of the CLI's default, letting an
- * operator run cheap/fast meetings without editing each councillor. The value is
+ * Host-wide model override for meeting and oeuvre turns. Empty by default. When
+ * set, every meeting LLM call this server runs — attendee turns, rolling summaries,
+ * and the closing synthesis — plus every oeuvre LLM call — leader picks, worker
+ * turns, and consolidation — uses this model instead of the CLI's default, letting
+ * an operator run cheap/fast councillor collaboration without editing each
+ * councillor. The value is
  * either a literal model id (`LANDSRAAD_MEETING_MODEL=haiku`) or a
  * service-agnostic tier (`lite`/`medium`/`heavy`) that each adapter maps to its
  * own model — so one tier means the same intent across a mixed fleet. A

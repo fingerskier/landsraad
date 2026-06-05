@@ -32,12 +32,12 @@ export const ENV_KEY_SUGGESTIONS: EnvKeySuggestion[] = [
   // Landsraad behavior globals (mirror config.ts).
   {
     key: 'LANDSRAAD_MEETING_TURN_NUDGE',
-    description: 'Text appended to every meeting turn — e.g. "Be terse — 1-3 sentences."'
+    description: 'Text appended to every meeting turn and oeuvre worker turn — e.g. "Be terse — 1-3 sentences."'
   },
   {
     key: 'LANDSRAAD_MEETING_MODEL',
     description:
-      'Model for all meeting turns. Use a tier — "lite"/"medium"/"heavy" — mapped per adapter, or a literal model id. A councillor ?model= pin still wins.',
+      'Model for all meeting and oeuvre LLM calls. Use a tier — "lite"/"medium"/"heavy" — mapped per adapter, or a literal model id. A councillor ?model= pin still wins.',
     values: ['lite', 'medium', 'heavy']
   },
   { key: 'LANDSRAAD_MEETING_WINDOW_K', description: 'Recent turns shown per meeting turn (default 4)' },

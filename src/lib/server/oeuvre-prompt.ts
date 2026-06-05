@@ -2,6 +2,7 @@
 // memory context and passes it in; these functions only shape the oeuvre-specific
 // framing so they stay easy to unit-test.
 import type { OeuvreParticipants } from '$lib/types';
+import { MEETING_TURN_NUDGE } from './config';
 
 function joinSections(parts: Array<string | undefined | null>): string {
   return parts.filter((p) => p && p.trim()).join('\n\n') + '\n';
@@ -83,7 +84,7 @@ export interface WorkerBriefInput {
  * the councillor's persona + retrieved memory. So this returns just the
  * oeuvre-specific instruction body.
  */
-export function buildWorkerBrief(i: WorkerBriefInput): string {
+export function buildWorkerBrief(i: WorkerBriefInput, nudge: string = MEETING_TURN_NUDGE): string {
   return [
     `You are advancing a shared work loop ("oeuvre") toward a goal.`,
     '',
@@ -110,6 +111,9 @@ export function buildWorkerBrief(i: WorkerBriefInput): string {
     `Then vote on whether the goal is achieved. Emit exactly one:`,
     '',
     `<<VOTE value="finish|continue" reason="one line: why">>`,
+    // Same host-wide brevity lever as meeting turns (LANDSRAAD_MEETING_TURN_NUDGE);
+    // empty by default, so this line vanishes unless an operator sets it.
+    nudge.trim() ? `\n${nudge.trim()}` : '',
     ''
   ].join('\n');
 }

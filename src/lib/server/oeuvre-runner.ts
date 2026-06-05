@@ -19,7 +19,7 @@ import {
 import { readCouncillor } from './councillors';
 import { councilRoot } from './paths';
 import { assembleContextFor } from './context';
-import { resolveAdapter, type ResolvedAdapter } from './adapters';
+import { resolveAdapter, type ResolvedAdapter, type ResolveAdapterOpts } from './adapters';
 import { runAdapter } from './adapters/runAdapter';
 import { createJob, readOutput, readInput } from './jobs';
 import { runJobNow, cancelJob } from './runner';
@@ -33,17 +33,25 @@ import {
 } from './oeuvre-prompt';
 import { parseNext, parseScratchpad, parseVote } from './oeuvre-blocks';
 import {
+  MEETING_MODEL,
   OEUVRE_CONSOLIDATE_TIMEOUT_MS,
   OEUVRE_LEADER_PICK_TIMEOUT_MS,
   OEUVRE_TURN_TIMEOUT_MS
 } from './config';
 
 // ── Dependency injection seam (tests script the leader/worker output) ────────
-type AdapterResolver = (adapterId: string) => ResolvedAdapter | null;
-let resolveAdapterFn: AdapterResolver = (id) => resolveAdapter(id);
+// Carries ResolveAdapterOpts so call sites can pass the host-wide meeting model
+// override (LANDSRAAD_MEETING_MODEL) the same way meeting call sites do.
+type AdapterResolver = (adapterId: string, opts?: ResolveAdapterOpts) => ResolvedAdapter | null;
+let resolveAdapterFn: AdapterResolver = (id, opts) => resolveAdapter(id, opts);
 export function _setAdapterResolverForTests(fn: AdapterResolver | null): void {
-  resolveAdapterFn = fn ?? ((id) => resolveAdapter(id));
+  resolveAdapterFn = fn ?? ((id, opts) => resolveAdapter(id, opts));
 }
+
+// Every oeuvre LLM call (leader pick, worker turn, consolidation) runs under the
+// same host-wide model lever as meetings, so an operator gets one knob for all
+// councillor collaboration. A per-councillor `?model=` pin still wins.
+const OEUVRE_ADAPTER_OPTS: ResolveAdapterOpts = { modelDefault: MEETING_MODEL };
 
 // In-flight guard, keyed by oeuvre id. Doubles as a mutex shared with
 // conclude/cancel so they never race a cycle.
@@ -79,7 +87,7 @@ interface LeaderPick {
 
 async function runLeaderPick(o: Oeuvre, pool: string[], states: OeuvreParticipants): Promise<LeaderPick> {
   const leader = await readCouncillor(o.leader_slug);
-  const adapter = resolveAdapterFn(leader.adapter);
+  const adapter = resolveAdapterFn(leader.adapter, OEUVRE_ADAPTER_OPTS);
   if (!adapter) return { ok: false, bytes: 0 };
 
   const context = await assembleContextFor(o.leader_slug, o.goal);
@@ -138,7 +146,7 @@ async function runWorkerTurn(
   if (lockCurrent(slug)) return { status: 'deferred', output: '', bytes: 0, jobId: null };
 
   const councillor = await readCouncillor(slug);
-  const adapter = resolveAdapterFn(councillor.adapter);
+  const adapter = resolveAdapterFn(councillor.adapter, OEUVRE_ADAPTER_OPTS);
   if (!adapter) {
     return { status: 'failed', output: '', bytes: 0, jobId: null };
   }
@@ -192,7 +200,7 @@ async function setPaused(id: string, reason: string): Promise<void> {
 async function runConsolidation(o: Oeuvre): Promise<void> {
   try {
     const leader = await readCouncillor(o.leader_slug);
-    const adapter = resolveAdapterFn(leader.adapter);
+    const adapter = resolveAdapterFn(leader.adapter, OEUVRE_ADAPTER_OPTS);
     if (!adapter) {
       await appendOeuvreEvent(o.id, {
         at: nowIso(),
