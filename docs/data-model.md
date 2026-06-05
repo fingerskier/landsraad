@@ -204,6 +204,44 @@ Peer audit log written at the **council root** (not inside a meeting directory).
 - `duration_ms` — wall-clock time for the adapter call.
 - `exit_code` — adapter exit code (0 = success).
 
+## `oeuvres/<oeuvre-id>/oeuvre.json`
+
+A goal-driven, leader-orchestrated work loop. See [`superpowers/specs/2026-06-05-oeuvre-design.md`](superpowers/specs/2026-06-05-oeuvre-design.md).
+
+```json
+{
+  "id": "2026-06-05T12-00-00-000Z-draft-the-launch-plan",
+  "title": "Draft the launch plan",
+  "goal": "Produce a launch plan the team can execute.",
+  "leader_slug": "lead",
+  "participants": ["planner", "critic"],
+  "status": "active",
+  "policy": { "max_turns": 30, "max_wall_ms": 3600000, "max_text_bytes": 2000000, "max_consecutive_failures": 3 },
+  "scratchpad_version": 4,
+  "total_turns": 7,
+  "text_bytes": 48211,
+  "leader_failures": 0,
+  "started_at": "...",
+  "concluded_at": null
+}
+```
+
+- `leader_slug` — orchestrates the loop; never takes a turn, never picks itself, never votes. `participants` must **not** include it.
+- `status` — `active | paused | concluding | concluded | cancelled | failed`. v1 allows one non-terminal oeuvre at a time per council.
+- `scratchpad_version` — bumped on every substantive scratchpad edit; a finish vote only counts at the current version (stale finishes stop counting).
+- `policy` — budget caps. `max_text_bytes` is a raw prompt+output byte count surfaced in the UI as "Text KB/MB" (not tokens — CLI adapters don't report token usage).
+- On conclusion: `memory_slugs`, `shared_memory_slugs`, `proposed_jobs` from the leader-authored consolidation pass (via the existing `<<MEMORY>>` / `<<JOB>>` reflection plumbing).
+
+Sibling files in `oeuvres/<oeuvre-id>/`:
+
+- `note.md` — director's live, editable steering note; read at the top of each leader and worker call.
+- `scratchpad.md` — the baton; the current best artifact, revised by worker turns. Indexed as `oeuvre_scratchpad`.
+- `participants.json` — per-participant ledger: `{ vote: "finish"|"continue"|null, reason, scratchpad_version, turn_idx, failures, out, ts }`. A councillor that fails `max_consecutive_failures` turns goes `out` (dropped from routing + the vote pool, so a broken adapter can't deadlock the loop).
+- `turns.jsonl` — one line per leader pick and per worker turn (each `turn` line links the turn's `job_id`).
+- `events.jsonl` — state-transition + progress log (`created | leader_pick | turn_started | turn_finished | turn_failed | participant_out | scratchpad_edited | vote | converged | budget_exceeded | pool_exhausted | paused | resumed | concluding | concluded | consolidated | consolidation_failed | cancelled | crashed`).
+
+Each worker turn is a real job under `jobs/`, tagged with `oeuvre_id` + `oeuvre_turn_idx`, run with reflection suppressed (the oeuvre consolidates once at the end instead).
+
 ## `*.template.json` schema
 
 Top-level fields of a council template file:

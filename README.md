@@ -92,7 +92,8 @@ Open the URL it prints (Vite picks a port, usually `http://localhost:5173`).
 
 ```
 council.json      councillors/   memory/
-jobs/             proposals/     meetings/      .index/
+jobs/             proposals/     meetings/
+schedules/        oeuvres/       .index/
 ```
 
 All of these are **gitignored** (see [`.gitignore`](./.gitignore)), so your local experimentation never shows up in `git status` and can't be committed by accident. Hack freely — it's a scratch council.
@@ -130,6 +131,13 @@ Honors `LANDSRAAD_COUNCIL_ROOT` (so `LANDSRAAD_COUNCIL_ROOT=./dogfood npm run re
 | `LANDSRAAD_MEETING_TURN_NUDGE` | _(empty)_ | Text appended to every meeting turn's speaker instruction. Set e.g. `"Be terse — 1-3 sentences."` to ask councillors for shorter responses in meetings. Read on the chair council, so one knob governs the whole meeting (local and remote attendees). Empty = no change. |
 | `LANDSRAAD_MEETING_MODEL` | _(empty)_ | Model for every meeting LLM call this server runs — attendee turns, rolling summaries, and the closing synthesis. Accepts a literal model id (`haiku`) or a service-agnostic tier (`lite`/`medium`/`heavy`) that each adapter maps to its own model (claude → haiku/sonnet/opus), so one tier means the same intent across a mixed fleet. A tier no-ops for adapters with no mapping (they fall back to the CLI default). A per-councillor `?model=` pin in the adapter string still wins. Per-process: each participating server reads its own value, so it also governs the turns it serves as a remote peer. Empty = each adapter's default model. |
 | `LANDSRAAD_REFLECT_TIMEOUT_MS` | `120000` | Time budget for the post-success reflection adapter call. Reflection runs while the job already reads `succeeded` but still holds the councillor lock (the lane shows `reflecting`); this cap stops a hung or slow model from pinning a councillor indefinitely. On timeout the job logs a `reflection_failed` event and the councillor is freed. |
+| `LANDSRAAD_OEUVRE_MAX_TURNS` | `30` | Default worker-turn cap for a new oeuvre (the goal-driven work loop). The loop auto-concludes when it hits this. Set per-oeuvre in the New Oeuvre form. |
+| `LANDSRAAD_OEUVRE_MAX_WALL_MS` | `3600000` | Default wall-clock cap (ms) for a new oeuvre. |
+| `LANDSRAAD_OEUVRE_MAX_TEXT_BYTES` | `2000000` | Default cumulative prompt+output byte cap for a new oeuvre, surfaced in the UI as "Text KB/MB". A real byte count — not tokens, which CLI adapters don't report. |
+| `LANDSRAAD_OEUVRE_MAX_CONSEC_FAILURES` | `3` | Consecutive failed turns before a councillor is dropped from an oeuvre's vote pool (so a broken adapter can't deadlock the loop). |
+| `LANDSRAAD_OEUVRE_TURN_TIMEOUT_MS` | `300000` | Per-turn adapter timeout for an oeuvre worker turn. |
+| `LANDSRAAD_OEUVRE_LEADER_PICK_TIMEOUT_MS` | `120000` | Timeout for the leader's per-turn routing call. |
+| `LANDSRAAD_OEUVRE_CONSOLIDATE_TIMEOUT_MS` | `120000` | Timeout for the leader-authored consolidation pass on conclusion. |
 
 When you run `npx landsraad`, the server opens your default browser to the council URL once it's listening. Set `PORT` to override the starting port.
 

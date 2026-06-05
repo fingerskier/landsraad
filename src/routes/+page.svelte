@@ -128,6 +128,17 @@
         <span class="stat-l">Meetings</span>
       </a>
     {/if}
+    {#if data.activeOeuvre}
+      <a class="stat accent" href="/oeuvres/{data.activeOeuvre.id}">
+        <span class="stat-n">{data.activeOeuvre.total_turns}</span>
+        <span class="stat-l">Oeuvre live</span>
+      </a>
+    {:else}
+      <a class="stat" href="/oeuvres">
+        <span class="stat-n">{data.oeuvresTotal}</span>
+        <span class="stat-l">Oeuvres</span>
+      </a>
+    {/if}
   </section>
 
   <section>

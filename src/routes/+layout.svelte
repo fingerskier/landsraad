@@ -6,13 +6,14 @@
 
   let title = $derived(page.data?.councilName ? `${page.data.councilName} — Landsraad` : 'Landsraad');
   const hasCouncil = $derived(page.data?.hasCouncil ?? false);
-  const nav = $derived(page.data?.nav ?? { proposals: 0, meetings: 0, running: 0, failed: 0 });
+  const nav = $derived(page.data?.nav ?? { proposals: 0, meetings: 0, oeuvres: 0, running: 0, failed: 0 });
 
   type Item = { href: string; label: string; count?: number };
   const items = $derived<Item[]>([
     { href: '/', label: 'Home' },
     { href: '/jobs', label: 'Activity', count: nav.running },
     { href: '/meetings', label: 'Meetings', count: nav.meetings },
+    { href: '/oeuvres', label: 'Oeuvres', count: nav.oeuvres },
     { href: '/schedules', label: 'Schedules' },
     { href: '/memory', label: 'Memory' },
     { href: '/proposals', label: 'Proposals', count: nav.proposals },

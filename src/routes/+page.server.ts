@@ -10,6 +10,7 @@ import { listJobProposals } from '$lib/server/proposals';
 import { currentRuns } from '$lib/server/runner';
 import { scheduleSummary } from '$lib/server/scheduler';
 import { listMeetings } from '$lib/server/meetings';
+import { listOeuvres } from '$lib/server/oeuvres';
 import { councilRoot } from '$lib/server/paths';
 import type { Job } from '$lib/types';
 import type { Actions, PageServerLoad } from './$types';
@@ -21,16 +22,19 @@ export const load: PageServerLoad = async () => {
     return { hasCouncil: false as const, cwd: councilRoot() };
   }
   const council = await readCouncilWithCouncillors();
-  const [jobs, notes, pendingProposals, schedules, meetings] = await Promise.all([
+  const [jobs, notes, pendingProposals, schedules, meetings, oeuvres] = await Promise.all([
     listJobs(),
     listNotes(),
     listJobProposals({ status: 'pending' }),
     scheduleSummary(),
-    listMeetings()
+    listMeetings(),
+    listOeuvres()
   ]);
   const activeMeetingsCount = meetings.filter(
     (m) => !['ended', 'cancelled', 'failed'].includes(m.status)
   ).length;
+  const activeOeuvre =
+    oeuvres.find((o) => !['concluded', 'cancelled', 'failed'].includes(o.status)) ?? null;
   const runsNow = currentRuns();
   const running = new Set(runsNow.map((r) => r.councillor));
   // Councillors whose only remaining work is post-success reflection: the job
@@ -86,6 +90,15 @@ export const load: PageServerLoad = async () => {
     activeMeetings: activeMeetingsCount,
     activeMeeting: activeMeeting
       ? { id: activeMeeting.id, title: activeMeeting.title, status: activeMeeting.status }
+      : null,
+    oeuvresTotal: oeuvres.length,
+    activeOeuvre: activeOeuvre
+      ? {
+          id: activeOeuvre.id,
+          title: activeOeuvre.title,
+          status: activeOeuvre.status,
+          total_turns: activeOeuvre.total_turns
+        }
       : null
   };
 };
