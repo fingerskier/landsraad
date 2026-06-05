@@ -113,3 +113,34 @@ describe('resolveSource — whole-file kinds', () => {
     expect(chunks[1].title).toBe('M1 · turn 2 · director');
   });
 });
+
+describe('resolveSource — project files (workspace)', () => {
+  it('maps a product .md to project_file, title from first heading', () => {
+    const rel = 'docs/launch-plan.md';
+    const src = resolveSource(rel)!;
+    expect(src.kind).toBe('project_file');
+    expect(src.refId(rel)).toBe('docs/launch-plan.md');
+    const [c] = src.buildChunks('# Launch Plan\n\nShip it.', rel, join(root, rel));
+    expect(c).toMatchObject({ chunk_idx: 0, title: 'Launch Plan', councillor_slug: null });
+  });
+
+  it('maps a product .txt to project_file, title from basename', () => {
+    const rel = 'notes/raw.txt';
+    const src = resolveSource(rel)!;
+    expect(src.kind).toBe('project_file');
+    expect(src.refId(rel)).toBe('notes/raw.txt');
+    const [c] = src.buildChunks('plain text body', rel, join(root, rel));
+    expect(c.title).toBe('raw.txt');
+  });
+
+  it('does not claim non-prose product files', () => {
+    expect(resolveSource('src/app.ts')).toBeNull();
+    expect(resolveSource('data/table.csv')).toBeNull();
+    expect(resolveSource('img/logo.png')).toBeNull();
+  });
+
+  it('routes .landsraad/ prose to the structured kind, not project_file', () => {
+    expect(resolveSource('.landsraad/memory/x.md')!.kind).toBe('memory');
+    expect(resolveSource('.landsraad/councillors/q/persona.md')!.kind).toBe('persona');
+  });
+});

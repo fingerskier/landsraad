@@ -79,6 +79,11 @@ Examples:
 | `job_output/2026-05-22T14-30-00Z-q1-summary#0` | `<council>/.landsraad/jobs/.../output.md` |
 | `transcript/2026-05-22T14-30-00Z-q1-summary#0` | `<council>/.landsraad/jobs/.../transcript.md` |
 | `persona/mocky#0` | `<council>/.landsraad/councillors/mocky/persona.md` |
+| `project_file/docs/launch-plan.md#0` | `<council>/docs/launch-plan.md` (product tree, not `.landsraad/`) |
+
+`project_file` chunks come from the **product tree** — `.md`/`.txt` in the working
+directory itself (`ref_id` is the council-root-relative path), gitignore-respecting.
+All other kinds come from the council machine under `.landsraad/`.
 
 The council is implicit: each council root owns its own DB. If we ever flip to a global index, prepend a council identifier as another column — no logical-key rewrite.
 

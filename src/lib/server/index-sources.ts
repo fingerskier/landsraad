@@ -167,6 +167,30 @@ function stripPrefix(src: IndexSource): IndexSource {
   };
 }
 
+/**
+ * Product-tree prose (`.md`/`.txt`) outside `.landsraad/` — the workspace the
+ * council assembles. Whole-file, one chunk (matching every structured source);
+ * the ref id is the council-root-relative path. Code, CSV, and binaries are
+ * deliberately excluded: the index is semantic memory, not a code search engine,
+ * and adapters already see the tree via their own cwd + file tools.
+ */
+const PROJECT_SOURCE: IndexSource = {
+  kind: 'project_file',
+  test: (rel) => /\.(md|txt)$/i.test(norm(rel)),
+  refId: (rel) => norm(rel),
+  buildChunks: (text, rel) => {
+    const name = basename(norm(rel));
+    return [
+      {
+        chunk_idx: 0,
+        text,
+        title: /\.md$/i.test(name) ? firstHeading(text, name) : name,
+        councillor_slug: null
+      }
+    ];
+  }
+};
+
 export function resolveSource(rel: string): IndexSource | null {
   const n = norm(rel);
   if (n.startsWith(DATA_PREFIX)) {
@@ -174,8 +198,8 @@ export function resolveSource(rel: string): IndexSource | null {
     const src = SOURCES.find((s) => s.test(inner));
     return src ? stripPrefix(src) : null;
   }
-  // Product-tree paths: not indexed in Phase 1. Phase 2 adds the project source here.
-  return null;
+  // Product tree: index prose only (allowlist enforced here authoritatively).
+  return PROJECT_SOURCE.test(n) ? PROJECT_SOURCE : null;
 }
 
 export const __sourcesForTest = SOURCES;

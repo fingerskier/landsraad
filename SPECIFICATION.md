@@ -115,11 +115,28 @@ single source of truth. Writers only write files; they never call the indexer. A
 chokidar watcher (`src/lib/server/watcher.ts`) re-derives index chunks from a
 path→kind source registry (`src/lib/server/index-sources.ts`) on add/change/unlink.
 
+**What gets indexed.** The watcher watches the whole council root and indexes two things:
+
+1. **The council machine** — everything under `.landsraad/` (memory, personas, job
+   `input`/`output`/`transcript`, meeting topics/turns/summaries/syntheses, oeuvre
+   scratchpads). Always indexed, regardless of `.gitignore` — it is the council's own
+   data. Its `.index/` db is never indexed.
+2. **The product** — prose files in the working directory itself: `.md` and `.txt`
+   only (kind `project_file`), so the council can retrieve over the docs it is
+   assembling. This is **semantic memory**, not a code search engine: code, CSVs, and
+   binaries are deliberately excluded (adapters already see the tree via their own
+   cwd + tools). The product walk **respects the root `.gitignore`** (so secrets and
+   build output stay out of the index) and skips dot-dirs and `node_modules`. Files
+   over `LANDSRAAD_INDEX_MAX_FILE_BYTES` (default 512 KB) are skipped. The `.gitignore`
+   is read at watcher start; edits take effect on restart. Retrieval pulls
+   `LANDSRAAD_PROJECT_TOPK` (default 6) project hits into a `Project context` prompt
+   section, sharing the memory char budget.
+
 - On startup the watcher loads a manifest (`source_path → source_mtime`) and skips
   files whose mtime is unchanged; files indexed for paths that no longer exist are
   pruned (orphan sweep on `ready`).
-- Moving a finished job's `output.md` into `councillors/<slug>/memory/` therefore
-  re-kinds it as private memory automatically.
+- Moving a finished job's `output.md` into `.landsraad/councillors/<slug>/memory/`
+  therefore re-kinds it as private memory automatically.
 - Set `LANDSRAAD_WATCH=0` to disable the watcher (e.g. to avoid two processes
   writing the same `.index/` in development).
 

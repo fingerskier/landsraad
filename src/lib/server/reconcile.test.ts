@@ -100,4 +100,19 @@ describe('reconcile', () => {
     await reindexFile('.landsraad/memory/gone.md');
     expect(await indexSearch('unique-gone')).toEqual([]);
   });
+
+  it('indexes a product .md (outside .landsraad/) as project_file', async () => {
+    write('docs/small.md', '# Small\n\nunique-small-token body');
+    await reindexFile('docs/small.md');
+    const hits = await indexSearch('unique-small-token');
+    expect(hits[0].kind).toBe('project_file');
+    expect(hits[0].ref_id).toBe('docs/small.md');
+  });
+
+  it('skips a product file larger than the size cap', async () => {
+    const big = 'lorem ipsum '.repeat(60_000); // ~720 KB > 512 KB default cap
+    write('docs/huge.md', '# Huge\n\n' + big + ' unique-huge-token');
+    await reindexFile('docs/huge.md');
+    expect(await indexSearch('unique-huge-token')).toEqual([]);
+  });
 });

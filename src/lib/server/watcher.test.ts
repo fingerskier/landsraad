@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 
 import { createCouncil } from './councils';
 import type { Embedder } from './embeddings';
-import { closeAll, indexSearch, setEmbedder } from './indexer';
+import { closeAll, indexListFiles, indexSearch, setEmbedder } from './indexer';
 import { reindexFile } from './reconcile';
 import { startIndexWatcher, stopIndexWatcher } from './watcher';
 
@@ -86,15 +86,33 @@ describe('index watcher', () => {
     expect((await indexSearch('unique-live'))[0].ref_id).toBe('live');
   });
 
-  it('does not index files outside .landsraad/ (the product tree)', async () => {
+  it('indexes product .md/.txt but not code', async () => {
     startIndexWatcher(root);
-    // A code file in the working directory is the machine's product, not its
-    // memory — the Phase 1 watcher only indexes .landsraad/.
     write('src/app.ts', 'const token = "unique-product-code";');
     write('README.md', '# Readme\n\nunique-product-doc body');
-    await settle(700);
-    expect(await indexSearch('unique-product-code')).toEqual([]);
-    expect(await indexSearch('unique-product-doc')).toEqual([]);
+    await waitUntil(async () => indexListFiles().some((f) => f.ref_id === 'README.md'));
+    const indexed = indexListFiles();
+    expect(indexed.find((f) => f.ref_id === 'README.md')?.kind).toBe('project_file');
+    // Code is the product, not semantic memory — never indexed.
+    expect(indexed.map((f) => f.ref_id)).not.toContain('src/app.ts');
+  });
+
+  it('respects the root .gitignore for the product tree', async () => {
+    write('.gitignore', 'private/\n');
+    write('private/secret.md', '# Secret\n\nunique-gitignored body');
+    write('public/note.md', '# Note\n\nunique-public body');
+    startIndexWatcher(root);
+    await waitUntil(async () => indexListFiles().some((f) => f.ref_id === 'public/note.md'));
+    await settle(300); // let any (wrongly) un-ignored sibling drain before asserting absence
+    expect(indexListFiles().map((f) => f.ref_id)).not.toContain('private/secret.md');
+  });
+
+  it('always indexes .landsraad/ even when .gitignore excludes it', async () => {
+    write('.gitignore', '.landsraad/\n');
+    write('.landsraad/memory/secret-mem.md', '# Mem\n\nunique-machine-mem body');
+    startIndexWatcher(root);
+    await waitUntil(async () => (await indexSearch('unique-machine-mem')).length > 0);
+    expect((await indexSearch('unique-machine-mem'))[0].kind).toBe('memory');
   });
 
   it('removes a file on unlink', async () => {

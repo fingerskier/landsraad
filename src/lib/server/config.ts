@@ -2,6 +2,14 @@ export const MEMORY_TOPK_SHARED = 8;
 export const MEMORY_TOPK_PRIVATE = 8;
 export const MEMORY_CHAR_BUDGET = 12000;
 
+// Workspace (product-tree) retrieval. `PROJECT_TOPK` is how many `project_file`
+// hits to pull into a prompt's "Project context" section (sharing MEMORY_CHAR_BUDGET
+// with the memory buckets). `INDEX_MAX_FILE_BYTES` is the per-file ceiling for
+// indexing a product doc — a real byte count, to keep one huge text file from
+// dominating the index. (Both read via envInt, hoisted below.)
+export const PROJECT_TOPK = envInt('LANDSRAAD_PROJECT_TOPK', 6);
+export const INDEX_MAX_FILE_BYTES = envInt('LANDSRAAD_INDEX_MAX_FILE_BYTES', 512_000);
+
 function envInt(name: string, fallback: number): number {
   const v = process.env[name];
   if (!v) return fallback;
