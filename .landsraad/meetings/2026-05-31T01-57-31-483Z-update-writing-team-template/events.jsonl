@@ -1,0 +1,33 @@
+{"at":"2026-05-31T01:57:31.483Z","type":"created"}
+{"at":"2026-05-31T01:57:31.483Z","type":"awaiting_director"}
+{"at":"2026-05-31T01:57:50.389Z","type":"director_turn","speaker":"director","turn_index":1}
+{"at":"2026-05-31T01:57:50.402Z","type":"turn_started","speaker":"fenring"}
+{"at":"2026-05-31T01:58:06.023Z","type":"turn_finished","speaker":"fenring","turn_index":2}
+{"at":"2026-05-31T01:58:06.024Z","type":"turn_started","speaker":"vladimir"}
+{"at":"2026-05-31T01:58:06.034Z","type":"turn_failed","speaker":"vladimir","message":"turn_failed: exit -1"}
+{"at":"2026-05-31T01:58:06.034Z","type":"paused","message":"turn_failed: exit -1"}
+{"at":"2026-05-31T02:01:02.599Z","type":"resumed"}
+{"at":"2026-05-31T02:01:02.601Z","type":"turn_started","speaker":"vladimir"}
+{"at":"2026-05-31T02:01:02.627Z","type":"turn_failed","speaker":"vladimir","message":"turn_failed: exit -1"}
+{"at":"2026-05-31T02:01:02.627Z","type":"paused","message":"turn_failed: exit -1"}
+{"at":"2026-05-31T02:01:15.614Z","type":"resumed"}
+{"at":"2026-05-31T02:01:15.617Z","type":"turn_started","speaker":"vladimir"}
+{"at":"2026-05-31T02:01:15.648Z","type":"turn_failed","speaker":"vladimir","message":"turn_failed: exit -1"}
+{"at":"2026-05-31T02:01:15.648Z","type":"paused","message":"turn_failed: exit -1"}
+{"at":"2026-05-31T02:04:24.797Z","type":"resumed"}
+{"at":"2026-05-31T02:04:24.799Z","type":"turn_started","speaker":"vladimir"}
+{"at":"2026-05-31T02:04:24.846Z","type":"turn_failed","speaker":"vladimir","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:04:24.847Z","type":"paused","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:04:43.913Z","type":"resumed"}
+{"at":"2026-05-31T02:04:43.914Z","type":"turn_started","speaker":"vladimir"}
+{"at":"2026-05-31T02:04:43.950Z","type":"turn_failed","speaker":"vladimir","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:04:43.950Z","type":"paused","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:04:49.112Z","type":"resumed"}
+{"at":"2026-05-31T02:04:49.114Z","type":"turn_started","speaker":"vladimir"}
+{"at":"2026-05-31T02:04:49.150Z","type":"turn_failed","speaker":"vladimir","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:04:49.151Z","type":"paused","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:05:00.529Z","type":"resumed"}
+{"at":"2026-05-31T02:05:00.530Z","type":"turn_started","speaker":"vladimir"}
+{"at":"2026-05-31T02:05:00.569Z","type":"turn_failed","speaker":"vladimir","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:05:00.569Z","type":"paused","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:05:03.113Z","type":"cancelled"}

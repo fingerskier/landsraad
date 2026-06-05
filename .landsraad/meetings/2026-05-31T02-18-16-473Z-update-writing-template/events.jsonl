@@ -1,0 +1,14 @@
+{"at":"2026-05-31T02:18:16.473Z","type":"created"}
+{"at":"2026-05-31T02:18:16.473Z","type":"awaiting_director"}
+{"at":"2026-05-31T02:18:56.042Z","type":"director_turn","speaker":"director","turn_index":1}
+{"at":"2026-05-31T02:18:56.058Z","type":"turn_started","speaker":"shaddam"}
+{"at":"2026-05-31T02:19:30.563Z","type":"turn_finished","speaker":"shaddam","turn_index":2}
+{"at":"2026-05-31T02:19:30.563Z","type":"turn_started","speaker":"leto"}
+{"at":"2026-05-31T02:22:22.697Z","type":"turn_finished","speaker":"leto","turn_index":3}
+{"at":"2026-05-31T02:22:22.698Z","type":"turn_started","speaker":"vladimir"}
+{"at":"2026-05-31T02:22:22.742Z","type":"turn_failed","speaker":"vladimir","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:22:22.742Z","type":"paused","message":"turn_failed: exit 2"}
+{"at":"2026-05-31T02:23:14.368Z","type":"synthesizing"}
+{"at":"2026-05-31T02:23:14.368Z","type":"synthesized"}
+{"at":"2026-05-31T02:23:14.368Z","type":"proposals_parsed","message":"mem=0 shared=1 proposals=1"}
+{"at":"2026-05-31T02:23:14.368Z","type":"ended"}

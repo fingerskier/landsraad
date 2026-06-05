@@ -146,9 +146,14 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-# Local Landsraad council scaffolding. When cwd is the council root (e.g. `npm run dev`
-# in this repo), the app writes the council machine under .landsraad/.
-/.landsraad/
+# Landsraad council machine under .landsraad/. The committed contents are the
+# *exemplar* council snapshot — a worked example (councillors, a meeting, a job)
+# shipped with the repo. Runtime-regenerable / transient machine state is excluded
+# so the exemplar stays stable and diff-free:
+#   - .index/             binary embeddings cache, rebuilt on demand
+#   - meetings-incoming/   transient cross-council summon audit log
+/.landsraad/.index/
+/.landsraad/meetings-incoming.jsonl
 
 # dogfood:init target dirs
 /dogfood/

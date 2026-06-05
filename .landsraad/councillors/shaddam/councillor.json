@@ -1,0 +1,9 @@
+{
+  "slug": "shaddam",
+  "name": "Shaddam",
+  "role": "Evangelist",
+  "routing_hint": "docs, onboarding, positioning, end-user UX framing",
+  "adapter": "cli:claude",
+  "reflect": true,
+  "created_at": "2026-05-31T01:52:38.265Z"
+}

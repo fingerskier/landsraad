@@ -1,0 +1,32 @@
+{
+  "id": "2026-05-31T02-18-16-473Z-update-writing-template",
+  "title": "Update Writing Template",
+  "chair_slug": "leto",
+  "attendees": [
+    "fenring",
+    "leto",
+    "shaddam",
+    "vladimir"
+  ],
+  "remote_attendees": [],
+  "status": "ended",
+  "window_k": 4,
+  "started_at": "2026-05-31T02:18:16.473Z",
+  "ended_at": "2026-05-31T02:23:14.368Z",
+  "current_round": 1,
+  "remaining_this_round": [
+    "vladimir",
+    "fenring"
+  ],
+  "director_spoken_this_round": true,
+  "last_summarized_turn": 0,
+  "total_turns": 3,
+  "pause_reason": "turn_failed: exit 2",
+  "memory_slugs": [],
+  "shared_memory_slugs": [
+    "writing-team-template-roles"
+  ],
+  "proposed_jobs": [
+    "2026-05-31T02-25-28-238Z-rename-fact-checker-to-skeptic"
+  ]
+}

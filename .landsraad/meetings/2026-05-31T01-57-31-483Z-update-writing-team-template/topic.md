@@ -1,0 +1,1 @@
+Should we update this template?  Researcher and Fact-Checker seem redundant; 

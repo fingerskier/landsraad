@@ -1,0 +1,17 @@
+{
+  "id": "2026-05-31T02-25-28-238Z-rename-fact-checker-to-skeptic",
+  "kind": "job",
+  "proposed_by": "leto",
+  "source_job_id": "meeting:2026-05-31T02-18-16-473Z-update-writing-template",
+  "title": "Rename Fact-Checker to Skeptic",
+  "brief": "Rename the `factcheck` role to `skeptic` in `example/writing-team.template.json`. Update the councillor's name, persona text, and routing hints to fully reflect the adversarial \"Skeptic\" refutation posture. Update the corresponding assertions in `src/lib/server/templates.writing-team.test.ts`.",
+  "target_councillor": "fenring",
+  "priority": "high",
+  "status": "approved",
+  "created_at": "2026-05-31T02:25:28.238Z",
+  "decided_at": "2026-05-31T02:26:53.925Z",
+  "decided_by": "user",
+  "resulting_job_ids": [
+    "2026-05-31T02-26-53-923Z-rename-fact-checker-to-skeptic"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "2026-06-01T04-00-41-346Z-template-restructuring",
+  "title": "Template Restructuring",
+  "chair_slug": "leto",
+  "attendees": [
+    "fenring",
+    "leto",
+    "shaddam",
+    "vladimir"
+  ],
+  "remote_attendees": [],
+  "status": "failed",
+  "window_k": 4,
+  "started_at": "2026-06-01T04:00:41.346Z",
+  "ended_at": "2026-06-01T04:03:11.982Z",
+  "current_round": 1,
+  "remaining_this_round": [
+    "vladimir"
+  ],
+  "director_spoken_this_round": true,
+  "last_summarized_turn": 0,
+  "total_turns": 3,
+  "pause_reason": "crashed_during=running"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "2026-05-31T01-57-31-483Z-update-writing-team-template",
+  "title": "Update Writing Team Template",
+  "chair_slug": "leto",
+  "attendees": [
+    "fenring",
+    "leto",
+    "shaddam",
+    "vladimir"
+  ],
+  "remote_attendees": [],
+  "status": "cancelled",
+  "window_k": 4,
+  "started_at": "2026-05-31T01:57:31.483Z",
+  "ended_at": "2026-05-31T02:05:03.113Z",
+  "current_round": 1,
+  "remaining_this_round": [
+    "vladimir",
+    "shaddam",
+    "leto"
+  ],
+  "director_spoken_this_round": true,
+  "last_summarized_turn": 0,
+  "total_turns": 2
+}

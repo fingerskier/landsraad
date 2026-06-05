@@ -1,0 +1,9 @@
+{"at":"2026-06-01T04:00:41.346Z","type":"created"}
+{"at":"2026-06-01T04:00:41.346Z","type":"awaiting_director"}
+{"at":"2026-06-01T04:00:50.237Z","type":"director_turn","speaker":"director","turn_index":1}
+{"at":"2026-06-01T04:00:50.248Z","type":"turn_started","speaker":"shaddam"}
+{"at":"2026-06-01T04:01:57.658Z","type":"turn_finished","speaker":"shaddam","turn_index":2}
+{"at":"2026-06-01T04:01:57.658Z","type":"turn_started","speaker":"fenring"}
+{"at":"2026-06-01T04:02:36.922Z","type":"turn_finished","speaker":"fenring","turn_index":3}
+{"at":"2026-06-01T04:02:36.935Z","type":"turn_started","speaker":"leto"}
+{"at":"2026-06-01T04:03:11.982Z","type":"crashed","message":"crashed_during=running"}

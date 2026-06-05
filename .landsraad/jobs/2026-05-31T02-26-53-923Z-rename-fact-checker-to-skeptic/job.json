@@ -1,0 +1,15 @@
+{
+  "id": "2026-05-31T02-26-53-923Z-rename-fact-checker-to-skeptic",
+  "title": "Rename Fact-Checker to Skeptic",
+  "brief": "Rename the `factcheck` role to `skeptic` in `example/writing-team.template.json`. Update the councillor's name, persona text, and routing hints to fully reflect the adversarial \"Skeptic\" refutation posture. Update the corresponding assertions in `src/lib/server/templates.writing-team.test.ts`.",
+  "councillor_slug": "fenring",
+  "status": "succeeded",
+  "created_at": "2026-05-31T02:26:53.923Z",
+  "started_at": "2026-05-31T02:26:54.042Z",
+  "finished_at": "2026-05-31T02:28:56.794Z",
+  "exit_code": 0,
+  "error": null,
+  "spawned_by_schedule_id": null,
+  "memory_slugs": [],
+  "shared_memory_slugs": []
+}

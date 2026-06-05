@@ -1,0 +1,9 @@
+{
+  "slug": "fenring",
+  "name": "Fenring",
+  "role": "Implementer",
+  "routing_hint": "SvelteKit code, schema/storage work, parser/runner internals, tests",
+  "adapter": "cli:codex",
+  "reflect": true,
+  "created_at": "2026-05-31T01:52:34.325Z"
+}
