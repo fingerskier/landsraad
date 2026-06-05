@@ -127,8 +127,9 @@ path→kind source registry (`src/lib/server/index-sources.ts`) on add/change/un
    binaries are deliberately excluded (adapters already see the tree via their own
    cwd + tools). The product walk **respects the root `.gitignore`** (so secrets and
    build output stay out of the index) and skips dot-dirs and `node_modules`. Files
-   over `LANDSRAAD_INDEX_MAX_FILE_BYTES` (default 512 KB) are skipped. The `.gitignore`
-   is read at watcher start; edits take effect on restart. Retrieval pulls
+   over `LANDSRAAD_INDEX_MAX_FILE_BYTES` (default 512 KB) are skipped. The **root**
+   `.gitignore` only is honored (nested `.gitignore` files are a follow-up), and it is
+   read at watcher start — edits take effect on restart. Retrieval pulls
    `LANDSRAAD_PROJECT_TOPK` (default 6) project hits into a `Project context` prompt
    section, sharing the memory char budget.
 

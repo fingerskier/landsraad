@@ -198,7 +198,8 @@ src/
   routes/                  # SvelteKit pages — flat: /, /council, /councillors/*, /memory/*, /jobs/*
 scripts/
   dogfood-init.ts          # seed a council into ./dogfood (or a custom path)
-  reindex.ts               # rebuild the semantic index for a council root
+  reindex.ts               # manual rebuild of the .landsraad/ index (council artifacts only;
+                           #   product .md/.txt are indexed live by the watcher, not by this script)
 SPECIFICATION.md           # what the product is supposed to be
 docs/                      # architecture + data model + embeddings notes
 ```
