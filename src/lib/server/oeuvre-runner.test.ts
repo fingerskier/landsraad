@@ -414,3 +414,69 @@ describe('oeuvre-runner applies LANDSRAAD_MEETING_MODEL', () => {
     expect(seenOpts.every((opts) => opts?.modelDefault === MEETING_MODEL)).toBe(true);
   });
 });
+
+describe('oeuvre-runner leader-pick diagnostics', () => {
+  beforeEach(setup);
+
+  async function waitForPaused(id: string, ms = 3000) {
+    const start = Date.now();
+    while (Date.now() - start < ms) {
+      const o = await readOeuvre(id);
+      if (o.status === 'paused') return o;
+      await delay(10);
+    }
+    throw new Error('oeuvre did not pause in time');
+  }
+
+  it('explains a leader pick that emitted no <<NEXT>> directive', async () => {
+    installScripts({
+      's-leo': () => ({ stdout: 'Hmm, I am not sure who should go next.' }),
+      's-alice': () => ({ stdout: '<<VOTE value="finish" reason="x">>' })
+    });
+    const o = await startOeuvre({
+      title: 'Diag',
+      goal: 'g',
+      leader_slug: 'leo',
+      participants: ['alice'],
+      policy: { max_consecutive_failures: 1 }
+    });
+    const paused = await waitForPaused(o.id);
+    expect(paused.pause_reason).toMatch(/leader_unavailable/i);
+    expect(paused.pause_reason).toMatch(/NEXT/);
+    const notes = (await readOeuvreEvents(o.id)).filter((e) => e.type === 'note');
+    expect(notes.some((n) => /leader pick failed/i.test(n.message ?? ''))).toBe(true);
+  });
+
+  it('surfaces a nonzero leader adapter exit in the reason', async () => {
+    installScripts({
+      's-leo': () => ({ stdout: 'partial', exit: 1 }),
+      's-alice': () => ({ stdout: '<<VOTE value="finish" reason="x">>' })
+    });
+    const o = await startOeuvre({
+      title: 'Diag2',
+      goal: 'g',
+      leader_slug: 'leo',
+      participants: ['alice'],
+      policy: { max_consecutive_failures: 1 }
+    });
+    const paused = await waitForPaused(o.id);
+    expect(paused.pause_reason).toMatch(/exited 1/i);
+  });
+
+  it('flags a leader that picks a non-participant', async () => {
+    installScripts({
+      's-leo': () => ({ stdout: '<<NEXT councillor="ghost" say="go">>' }),
+      's-alice': () => ({ stdout: '<<VOTE value="finish" reason="x">>' })
+    });
+    const o = await startOeuvre({
+      title: 'Diag3',
+      goal: 'g',
+      leader_slug: 'leo',
+      participants: ['alice'],
+      policy: { max_consecutive_failures: 1 }
+    });
+    const paused = await waitForPaused(o.id);
+    expect(paused.pause_reason).toMatch(/not an active participant/i);
+    expect(paused.pause_reason).toMatch(/ghost/);
+  });
+});

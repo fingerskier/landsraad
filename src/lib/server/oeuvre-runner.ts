@@ -87,12 +87,26 @@ interface LeaderPick {
   councillor?: string;
   say?: string;
   bytes: number;
+  /** When `!ok`, a human-readable explanation surfaced in the pause reason + timeline. */
+  reason?: string;
+}
+
+/** Collapse adapter text to a single trimmed line for an event/banner. */
+function snippet(s: string, max = 240): string {
+  const oneLine = s.replace(/\s+/g, ' ').trim();
+  return oneLine.length > max ? oneLine.slice(0, max) + '…' : oneLine;
 }
 
 async function runLeaderPick(o: Oeuvre, pool: string[], states: OeuvreParticipants): Promise<LeaderPick> {
   const leader = await readCouncillor(o.leader_slug);
   const adapter = resolveAdapterFn(leader.adapter, OEUVRE_ADAPTER_OPTS);
-  if (!adapter) return { ok: false, bytes: 0 };
+  if (!adapter) {
+    return {
+      ok: false,
+      bytes: 0,
+      reason: `leader '${o.leader_slug}' has no usable adapter (adapter="${leader.adapter || 'unset'}")`
+    };
+  }
 
   const context = await assembleContextFor(o.leader_slug, o.goal);
   const note = await readNote(o.id);
@@ -121,12 +135,38 @@ async function runLeaderPick(o: Oeuvre, pool: string[], states: OeuvreParticipan
       abortSignal: controller.signal
     });
     bytes += byteLen(res.output);
-    if (res.timedOut || res.exit_code !== 0) return { ok: false, bytes };
+    if (res.timedOut) {
+      return { ok: false, bytes, reason: `leader adapter "${leader.adapter}" timed out after ${OEUVRE_LEADER_PICK_TIMEOUT_MS}ms` };
+    }
+    if (res.exit_code !== 0) {
+      // res.transcript carries the adapter's stderr (e.g. an auth/CLI error) — the
+      // single most useful thing to show, and previously discarded entirely.
+      const tail = snippet(res.transcript || res.output);
+      return {
+        ok: false,
+        bytes,
+        reason: `leader adapter "${leader.adapter}" exited ${res.exit_code}${tail ? ` — ${tail}` : ''}`
+      };
+    }
     const next = parseNext(res.output);
-    if (!next || !next.councillor) return { ok: false, bytes };
+    if (!next || !next.councillor) {
+      return {
+        ok: false,
+        bytes,
+        reason: `leader emitted no <<NEXT councillor="…">> directive — output: ${snippet(res.output) || '(empty)'}`
+      };
+    }
     // The leader may not pick itself, a non-participant, or an out councillor.
-    if (next.councillor === o.leader_slug) return { ok: false, bytes };
-    if (!pool.includes(next.councillor)) return { ok: false, bytes };
+    if (next.councillor === o.leader_slug) {
+      return { ok: false, bytes, reason: `leader picked itself ("${next.councillor}"); the leader may not take a turn` };
+    }
+    if (!pool.includes(next.councillor)) {
+      return {
+        ok: false,
+        bytes,
+        reason: `leader picked "${next.councillor}", not an active participant (pool: ${pool.join(', ') || 'none'})`
+      };
+    }
     return { ok: true, councillor: next.councillor, say: next.say, bytes };
   } finally {
     directAborters.delete(o.id);
@@ -351,9 +391,16 @@ export async function advanceOeuvre(id: string): Promise<void> {
     if (!pick.ok) {
       o.leader_failures += 1;
       o.text_bytes += pick.bytes;
+      const why = pick.reason ?? 'unknown reason';
+      // Record every failed attempt so the cause is visible even before the pause.
+      await appendOeuvreEvent(id, {
+        at: nowIso(),
+        type: 'note',
+        message: `leader pick failed (${o.leader_failures}/${o.policy.max_consecutive_failures}): ${why}`
+      });
       if (o.leader_failures >= o.policy.max_consecutive_failures) {
         await writeOeuvre(o);
-        await setPaused(id, 'leader_unavailable');
+        await setPaused(id, `leader_unavailable: ${why}`);
         return;
       }
       await writeOeuvre(o);

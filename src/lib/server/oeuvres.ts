@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
@@ -31,6 +31,18 @@ const TERMINAL: OeuvreStatus[] = ['concluded', 'cancelled', 'failed'];
 
 export function isTerminal(status: OeuvreStatus): boolean {
   return TERMINAL.includes(status);
+}
+
+// The oeuvre loop rewrites oeuvre.json / participants.json frequently while readers
+// (the loop itself, the auto-refreshing detail page) read them. A plain writeFile
+// isn't atomic, so a reader can catch a truncated file mid-write and blow up on
+// JSON.parse. Write to a unique temp file in the same dir, then rename — rename is
+// atomic on POSIX, so every read sees either the old or the new file, never a torn one.
+let atomicSeq = 0;
+async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
+  const tmp = `${path}.${process.pid}.${atomicSeq++}.tmp`;
+  await writeFile(tmp, JSON.stringify(value, null, 2) + '\n', 'utf8');
+  await rename(tmp, path);
 }
 
 // ── Wall-clock accounting (excludes paused / crashed downtime) ───────────────
@@ -165,7 +177,7 @@ export async function readOeuvre(id: string): Promise<Oeuvre> {
 }
 
 export async function writeOeuvre(o: Oeuvre): Promise<void> {
-  await writeFile(join(oeuvreDir(o.id), OEUVRE_FILE), JSON.stringify(o, null, 2) + '\n', 'utf8');
+  await writeJsonAtomic(join(oeuvreDir(o.id), OEUVRE_FILE), o);
 }
 
 export async function listOeuvres(filter?: {
@@ -211,11 +223,7 @@ export async function readParticipants(id: string): Promise<OeuvreParticipants> 
 }
 
 export async function writeParticipants(id: string, states: OeuvreParticipants): Promise<void> {
-  await writeFile(
-    join(oeuvreDir(id), PARTICIPANTS_FILE),
-    JSON.stringify(states, null, 2) + '\n',
-    'utf8'
-  );
+  await writeJsonAtomic(join(oeuvreDir(id), PARTICIPANTS_FILE), states);
 }
 
 export async function appendOeuvreEvent(id: string, event: OeuvreEvent): Promise<void> {
