@@ -56,7 +56,7 @@ To stop the council, click the terminal window and press `Ctrl + C`.
 ## What's here
 
 - A SvelteKit + TypeScript app you run locally.
-- **One council per directory.** When you run `npx landsraad`, the current working directory **is** the council — `council.json`, `councillors/`, `memory/`, `jobs/`, `.index/` all sit at cwd.
+- **One council per directory.** When you run `npx landsraad`, the current working directory **is** the council. Its state (`council.json`, `councillors/`, `memory/`, `jobs/`, `.index/`, …) lives in a hidden `.landsraad/` folder at cwd; the working directory itself stays clear for your work product. Only `.env` and `.gitignore` sit at the root.
 - No accounts, no cloud, no telemetry. You are the only user. You are also the secretary.
 
 ---
@@ -74,7 +74,7 @@ mkdir my-council && cd my-council
 npx landsraad
 ```
 
-Open the URL it prints. The setup form creates `council.json` in the current directory.
+Open the URL it prints. The setup form creates the council under `.landsraad/` in the current directory.
 
 ## Development
 
@@ -88,15 +88,15 @@ npm run dev
 
 Open the URL it prints (Vite picks a port, usually `http://localhost:5173`).
 
-**`npm run dev` turns the cloned repo into a throwaway test council.** Because a council root is just `process.cwd()`, the dev server treats the repo checkout itself as the council. The first time you create councillors, jobs, or run a meeting, the app scaffolds the council files **right in your clone**:
+**`npm run dev` turns the cloned repo into a throwaway test council.** Because a council root is just `process.cwd()`, the dev server treats the repo checkout itself as the council. The first time you create councillors, jobs, or run a meeting, the app scaffolds the council machine under **`.landsraad/` right in your clone**:
 
 ```
-council.json      councillors/   memory/
-jobs/             proposals/     meetings/
-schedules/        oeuvres/       .index/
+.landsraad/
+  council.json   councillors/   memory/   jobs/
+  proposals/     meetings/      schedules/ oeuvres/   .index/
 ```
 
-All of these are **gitignored** (see [`.gitignore`](./.gitignore)), so your local experimentation never shows up in `git status` and can't be committed by accident. Hack freely — it's a scratch council.
+`.landsraad/` is **gitignored** (a single `/.landsraad/` line in [`.gitignore`](./.gitignore)), so your local experimentation never shows up in `git status` and can't be committed by accident. Hack freely — it's a scratch council.
 
 ### Target a different council directory
 

@@ -59,45 +59,45 @@ function write(rel: string, body: string): void {
 
 describe('reconcile', () => {
   it('reindexFile makes a memory note searchable', async () => {
-    write('memory/runway.md', '# Runway\n\nReserve thirty percent unique-token.');
-    await reindexFile('memory/runway.md');
+    write('.landsraad/memory/runway.md', '# Runway\n\nReserve thirty percent unique-token.');
+    await reindexFile('.landsraad/memory/runway.md');
     const hits = await indexSearch('unique-token reserve');
     expect(hits[0].kind).toBe('memory');
     expect(hits[0].ref_id).toBe('runway');
   });
 
   it('removeFile deletes the chunks', async () => {
-    write('memory/doomed.md', '# Doomed\n\nunique-token-doomed body');
-    await reindexFile('memory/doomed.md');
+    write('.landsraad/memory/doomed.md', '# Doomed\n\nunique-token-doomed body');
+    await reindexFile('.landsraad/memory/doomed.md');
     expect((await indexSearch('unique-token-doomed')).length).toBe(1);
-    removeFile('memory/doomed.md');
+    removeFile('.landsraad/memory/doomed.md');
     expect(await indexSearch('unique-token-doomed')).toEqual([]);
   });
 
   it('reindexFile re-embeds changed content and drops old text', async () => {
-    write('memory/doc.md', '# Doc\n\nfirst draft pancakes');
-    await reindexFile('memory/doc.md');
-    write('memory/doc.md', '# Doc\n\nsecond draft waffles');
-    await reindexFile('memory/doc.md');
+    write('.landsraad/memory/doc.md', '# Doc\n\nfirst draft pancakes');
+    await reindexFile('.landsraad/memory/doc.md');
+    write('.landsraad/memory/doc.md', '# Doc\n\nsecond draft waffles');
+    await reindexFile('.landsraad/memory/doc.md');
     const hits = await indexSearch('waffles');
     expect(hits[0].text).toContain('waffles');
     expect(hits[0].text).not.toContain('pancakes');
   });
 
   it('records source_mtime equal to the file mtime', async () => {
-    write('memory/stamp.md', '# Stamp\n\nbody');
-    await reindexFile('memory/stamp.md');
+    write('.landsraad/memory/stamp.md', '# Stamp\n\nbody');
+    await reindexFile('.landsraad/memory/stamp.md');
     const { statSync } = await import('node:fs');
-    const mtime = statSync(join(root, 'memory/stamp.md')).mtime.toISOString();
+    const mtime = statSync(join(root, '.landsraad/memory/stamp.md')).mtime.toISOString();
     const row = indexListFiles().find((r) => r.ref_id === 'stamp');
     expect(row?.source_mtime).toBe(mtime);
   });
 
   it('reindexFile on a missing file removes existing chunks', async () => {
-    write('memory/gone.md', '# Gone\n\nunique-gone body');
-    await reindexFile('memory/gone.md');
-    rmSync(join(root, 'memory/gone.md'));
-    await reindexFile('memory/gone.md');
+    write('.landsraad/memory/gone.md', '# Gone\n\nunique-gone body');
+    await reindexFile('.landsraad/memory/gone.md');
+    rmSync(join(root, '.landsraad/memory/gone.md'));
+    await reindexFile('.landsraad/memory/gone.md');
     expect(await indexSearch('unique-gone')).toEqual([]);
   });
 });

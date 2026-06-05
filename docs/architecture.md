@@ -9,7 +9,7 @@ browser <--HTTP--> SvelteKit (Node)
                        |
                        v
                    filesystem
-                   (process.cwd() — the council root)
+                   (process.cwd()/.landsraad — the council machine)
 ```
 
 ## Why SvelteKit (full-stack)
@@ -18,7 +18,7 @@ A v0 with no agent execution is mostly forms + a filesystem CRUD layer. SvelteKi
 
 ## Module boundaries
 
-- `src/lib/server/paths.ts` — slug rules and on-disk path resolution. Single source of truth for "where does this go?". All paths derive from `councilRoot()` (= `cwd` or `LANDSRAAD_COUNCIL_ROOT`).
+- `src/lib/server/paths.ts` — slug rules and on-disk path resolution. Single source of truth for "where does this go?". `councilRoot()` (= `cwd` or `LANDSRAAD_COUNCIL_ROOT`) is the product workspace and the adapter cwd; `councilDataRoot()` = `<councilRoot>/.landsraad/` is where all council state nests. Data helpers derive from `councilDataRoot()`; only `.env` and `.gitignore` stay at `councilRoot()`.
 - `src/lib/server/councils.ts` — council CRUD (singular: `hasCouncil`, `readCouncil`, `createCouncil`, `updateCouncil`, `deleteCouncilData`).
 - `src/lib/server/councillors.ts` — councillor CRUD (incl. `reflect` flag, `routing_hint`).
 - `src/lib/server/memory.ts` — shared-note CRUD.

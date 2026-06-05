@@ -149,9 +149,33 @@ const SOURCES: IndexSource[] = [
   }
 ];
 
+const DATA_PREFIX = '.landsraad/';
+
+/**
+ * Wrap a structured source so it sees the council-data-relative path (the
+ * `.landsraad/` prefix peeled off), while reconcile keeps passing the full
+ * `councilRoot()`-relative rel. This keeps every matcher regex and positional
+ * `split('/')` index in SOURCES unchanged after the layout move.
+ */
+function stripPrefix(src: IndexSource): IndexSource {
+  const inner = (rel: string) => norm(rel).slice(DATA_PREFIX.length);
+  return {
+    kind: src.kind,
+    test: (rel) => src.test(inner(rel)),
+    refId: (rel) => src.refId(inner(rel)),
+    buildChunks: (text, rel, absPath) => src.buildChunks(text, inner(rel), absPath)
+  };
+}
+
 export function resolveSource(rel: string): IndexSource | null {
   const n = norm(rel);
-  return SOURCES.find((s) => s.test(n)) ?? null;
+  if (n.startsWith(DATA_PREFIX)) {
+    const inner = n.slice(DATA_PREFIX.length);
+    const src = SOURCES.find((s) => s.test(inner));
+    return src ? stripPrefix(src) : null;
+  }
+  // Product-tree paths: not indexed in Phase 1. Phase 2 adds the project source here.
+  return null;
 }
 
 export const __sourcesForTest = SOURCES;

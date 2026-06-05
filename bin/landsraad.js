@@ -32,7 +32,7 @@ const [, , sub, ...rest] = process.argv;
 
 function readCouncilName(cwd) {
   try {
-    const file = resolve(cwd, 'council.json');
+    const file = resolve(cwd, '.landsraad', 'council.json');
     if (!existsSync(file)) return null;
     const data = JSON.parse(readFileSync(file, 'utf8'));
     const name = typeof data?.name === 'string' ? data.name.trim() : '';
@@ -204,7 +204,7 @@ if (sub === 'init') {
   const cwd = process.cwd();
   const explicitName = readCouncilName(cwd);
   const councilName = explicitName ?? basename(cwd);
-  const configPath = resolve(cwd, 'council.json');
+  const configPath = resolve(cwd, '.landsraad', 'council.json');
   setTerminalTitle(`${councilName} — Landsraad`);
   task = runBundled('build/index.js', {
     autoOpen: true,

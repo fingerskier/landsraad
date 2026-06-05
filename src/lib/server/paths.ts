@@ -5,6 +5,16 @@ export function councilRoot(): string {
   return env.LANDSRAAD_COUNCIL_ROOT || cwd();
 }
 
+/**
+ * The council's machine state lives under `<councilRoot>/.landsraad/`, keeping it
+ * out of the way of the working directory (the product the agents assemble). The
+ * council root itself stays the process cwd — and the adapter cwd — so agents run
+ * in the product tree. Only `.env` and `.gitignore` stay at the root.
+ */
+export function councilDataRoot(): string {
+  return join(councilRoot(), '.landsraad');
+}
+
 export function pkgRoot(): string {
   return env.LANDSRAAD_PKG_ROOT || cwd();
 }
@@ -14,7 +24,7 @@ export function bundledTemplatesDir(): string {
 }
 
 export function councilFile(): string {
-  return join(councilRoot(), 'council.json');
+  return join(councilDataRoot(), 'council.json');
 }
 
 export function councilEnvFile(): string {
@@ -22,7 +32,7 @@ export function councilEnvFile(): string {
 }
 
 export function councillorsRoot(): string {
-  return join(councilRoot(), 'councillors');
+  return join(councilDataRoot(), 'councillors');
 }
 
 export function councillorDir(councillorSlug: string): string {
@@ -34,11 +44,11 @@ export function councillorMemoryDir(councillorSlug: string): string {
 }
 
 export function memoryDir(): string {
-  return join(councilRoot(), 'memory');
+  return join(councilDataRoot(), 'memory');
 }
 
 export function jobsDir(): string {
-  return join(councilRoot(), 'jobs');
+  return join(councilDataRoot(), 'jobs');
 }
 
 export function jobDir(jobId: string): string {
@@ -46,7 +56,7 @@ export function jobDir(jobId: string): string {
 }
 
 export function indexDirPath(): string {
-  return join(councilRoot(), '.index');
+  return join(councilDataRoot(), '.index');
 }
 
 export function indexDbPath(): string {
@@ -71,7 +81,7 @@ export function jobIdFor(title: string, now: Date = new Date()): string {
 }
 
 export function proposalsDir(): string {
-  return join(councilRoot(), 'proposals');
+  return join(councilDataRoot(), 'proposals');
 }
 
 export function jobProposalsDir(): string {
@@ -79,7 +89,7 @@ export function jobProposalsDir(): string {
 }
 
 export function schedulesDir(): string {
-  return join(councilRoot(), 'schedules');
+  return join(councilDataRoot(), 'schedules');
 }
 
 export function scheduleFile(scheduleId: string): string {
@@ -97,7 +107,7 @@ export function scheduleIdFor(title: string, now: Date = new Date()): string {
 }
 
 export function meetingsDir(): string {
-  return join(councilRoot(), 'meetings');
+  return join(councilDataRoot(), 'meetings');
 }
 
 export function meetingDir(meetingId: string): string {
@@ -110,11 +120,11 @@ export function meetingIdFor(title: string, now: Date = new Date()): string {
 }
 
 export function meetingsIncomingFile(): string {
-  return join(councilRoot(), 'meetings-incoming.jsonl');
+  return join(councilDataRoot(), 'meetings-incoming.jsonl');
 }
 
 export function oeuvresDir(): string {
-  return join(councilRoot(), 'oeuvres');
+  return join(councilDataRoot(), 'oeuvres');
 }
 
 export function oeuvreDir(oeuvreId: string): string {

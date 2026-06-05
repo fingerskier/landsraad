@@ -16,7 +16,9 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--target' || a === '-t') args.target = argv[++i];
     else if (a === '--help' || a === '-h') {
       console.log('Usage: landsraad reset [--target <dir>] [--yes]');
-      console.log('Wipes council.json, councillors/, memory/, jobs/, proposals/, .index/.');
+      console.log('Wipes the council machine at <dir>/.landsraad/ (council.json,');
+      console.log('councillors/, memory/, jobs/, meetings/, oeuvres/, proposals/,');
+      console.log('schedules/, .index/). Leaves the working directory and .env untouched.');
       process.exit(0);
     } else throw new Error(`Unexpected arg: ${a}`);
   }
@@ -39,10 +41,11 @@ async function main(): Promise<void> {
   console.log(`  ${root}`);
   console.log('');
   console.log('Removed:');
-  console.log('  council.json, councillors/, memory/, jobs/, proposals/, .index/');
+  console.log('  .landsraad/ (council.json, councillors/, memory/, jobs/, meetings/,');
+  console.log('  oeuvres/, proposals/, schedules/, .index/)');
   if (!hadCouncil) {
     console.log('');
-    console.log('(No council.json found — stray subdirs will still be removed.)');
+    console.log('(No council.json found — the .landsraad/ dir will still be removed if present.)');
   }
 
   if (!args.yes) {

@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { Council, CouncilWithCouncillors } from '$lib/types';
-import { councilFile, councilRoot, councillorsRoot, slugify } from './paths';
+import { councilDataRoot, councilFile, councilRoot, councillorsRoot, slugify } from './paths';
 import { listCouncillors } from './councillors';
 
 export interface NewCouncilInput {
@@ -67,10 +67,11 @@ export async function updateCouncil(input: UpdateCouncilInput): Promise<Council>
 }
 
 export async function deleteCouncilData(): Promise<void> {
-  const root = councilRoot();
-  for (const sub of ['council.json', 'councillors', 'memory', 'jobs', '.index', 'proposals', 'schedules']) {
-    await rm(`${root}/${sub}`, { recursive: true, force: true });
-  }
+  // The entire council machine lives under `.landsraad/`; removing it is the whole
+  // delete. This never touches the product tree (the user's files at the root) and
+  // can't drift out of date as new machine subdirs are added. Root `.env` is left
+  // in place (it is the user's, not generated council data).
+  await rm(councilDataRoot(), { recursive: true, force: true });
 }
 
 export async function readCouncilWithCouncillors(): Promise<CouncilWithCouncillors> {

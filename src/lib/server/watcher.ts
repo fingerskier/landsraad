@@ -11,6 +11,27 @@ function rel(root: string, abs: string): string {
   return relative(root, abs).replace(/\\/g, '/');
 }
 
+/**
+ * Decide which paths the watcher ignores. The watch root is `councilRoot()` (the
+ * product tree), but Phase 1 only indexes the council machine under `.landsraad/`.
+ * A plain dot-dir ignore would swallow `.landsraad/` itself, so this is a function
+ * matcher: descend into `.landsraad/`, skip its `.index` db (and any dotfile), skip
+ * `node_modules`, and ignore everything else in the product tree for now. Phase 2
+ * relaxes the product-tree branch to index `.md`/`.txt`, respecting `.gitignore`.
+ */
+function makeIgnored(root: string): (abs: string) => boolean {
+  return (abs: string): boolean => {
+    const r = rel(root, abs);
+    if (r === '') return false; // the watch root itself — must descend
+    const parts = r.split('/');
+    if (parts.includes('node_modules')) return true;
+    if (r !== '.landsraad' && !r.startsWith('.landsraad/')) return true;
+    // Inside .landsraad/: skip dot-children (.index, stray dotfiles).
+    if (parts.slice(1).some((p) => p.startsWith('.'))) return true;
+    return false;
+  };
+}
+
 export function startIndexWatcher(root: string = councilRoot()): FSWatcher | null {
   if (!hasEmbedder()) return null;
   if (watcher) return watcher;
@@ -57,7 +78,7 @@ export function startIndexWatcher(root: string = councilRoot()): FSWatcher | nul
   }
 
   watcher = chokidar.watch(root, {
-    ignored: ['**/.index/**', '**/node_modules/**', '**/.git/**', /(^|[/\\])\../],
+    ignored: makeIgnored(root),
     ignoreInitial: false,
     awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 }
   });

@@ -22,7 +22,7 @@ function write(rel: string, body: string): string {
 
 describe('resolveSource — whole-file kinds', () => {
   it('maps a shared memory note', () => {
-    const rel = 'memory/capital-allocation.md';
+    const rel = '.landsraad/memory/capital-allocation.md';
     const abs = write(rel, '# Capital Allocation\n\nReserve runway.');
     const src = resolveSource(rel)!;
     expect(src.kind).toBe('memory');
@@ -32,7 +32,7 @@ describe('resolveSource — whole-file kinds', () => {
   });
 
   it('maps a private memory note with councillor slug', () => {
-    const rel = 'councillors/quant/memory/hedging.md';
+    const rel = '.landsraad/councillors/quant/memory/hedging.md';
     const abs = write(rel, '# Hedging\n\nbody');
     const src = resolveSource(rel)!;
     expect(src.kind).toBe('memory_private');
@@ -42,8 +42,8 @@ describe('resolveSource — whole-file kinds', () => {
   });
 
   it('maps a persona, title from sibling councillor.json', () => {
-    write('councillors/quant/councillor.json', JSON.stringify({ name: 'Quant', slug: 'quant' }));
-    const rel = 'councillors/quant/persona.md';
+    write('.landsraad/councillors/quant/councillor.json', JSON.stringify({ name: 'Quant', slug: 'quant' }));
+    const rel = '.landsraad/councillors/quant/persona.md';
     const abs = write(rel, 'I am the quant.');
     const src = resolveSource(rel)!;
     expect(src.kind).toBe('persona');
@@ -53,13 +53,13 @@ describe('resolveSource — whole-file kinds', () => {
   });
 
   it('maps job input/output/transcript from sibling job.json', () => {
-    write('jobs/2026-job-x/job.json', JSON.stringify({ title: 'Job X', councillor_slug: 'quant' }));
+    write('.landsraad/jobs/2026-job-x/job.json', JSON.stringify({ title: 'Job X', councillor_slug: 'quant' }));
     for (const [file, kind] of [
       ['input.md', 'job_input'],
       ['output.md', 'job_output'],
       ['transcript.md', 'transcript']
     ] as const) {
-      const rel = `jobs/2026-job-x/${file}`;
+      const rel = `.landsraad/jobs/2026-job-x/${file}`;
       const abs = write(rel, 'content here');
       const src = resolveSource(rel)!;
       expect(src.kind).toBe(kind);
@@ -70,33 +70,37 @@ describe('resolveSource — whole-file kinds', () => {
   });
 
   it('maps meeting topic/summary/synthesis from sibling meeting.json', () => {
-    write('meetings/2026-m1/meeting.json', JSON.stringify({ title: 'M1', chair_slug: 'quant' }));
-    const topic = resolveSource('meetings/2026-m1/topic.md')!;
+    write('.landsraad/meetings/2026-m1/meeting.json', JSON.stringify({ title: 'M1', chair_slug: 'quant' }));
+    const topic = resolveSource('.landsraad/meetings/2026-m1/topic.md')!;
     expect(topic.kind).toBe('meeting_topic');
-    expect(topic.buildChunks('t', 'meetings/2026-m1/topic.md', join(root, 'meetings/2026-m1/topic.md'))[0])
+    expect(topic.buildChunks('t', '.landsraad/meetings/2026-m1/topic.md', join(root, '.landsraad/meetings/2026-m1/topic.md'))[0])
       .toMatchObject({ title: 'M1', councillor_slug: null });
-    const summary = resolveSource('meetings/2026-m1/summary.md')!;
+    const summary = resolveSource('.landsraad/meetings/2026-m1/summary.md')!;
     expect(summary.kind).toBe('meeting_summary');
-    expect(summary.buildChunks('s', 'meetings/2026-m1/summary.md', join(root, 'meetings/2026-m1/summary.md'))[0])
+    expect(summary.buildChunks('s', '.landsraad/meetings/2026-m1/summary.md', join(root, '.landsraad/meetings/2026-m1/summary.md'))[0])
       .toMatchObject({ title: 'M1 · summary', councillor_slug: 'quant' });
-    const synth = resolveSource('meetings/2026-m1/synthesis.md')!;
+    const synth = resolveSource('.landsraad/meetings/2026-m1/synthesis.md')!;
     expect(synth.kind).toBe('meeting_synthesis');
-    expect(synth.buildChunks('s', 'meetings/2026-m1/synthesis.md', join(root, 'meetings/2026-m1/synthesis.md'))[0])
+    expect(synth.buildChunks('s', '.landsraad/meetings/2026-m1/synthesis.md', join(root, '.landsraad/meetings/2026-m1/synthesis.md'))[0])
       .toMatchObject({ title: 'M1 · synthesis', councillor_slug: 'quant' });
   });
 
   it('returns null for unclaimed paths', () => {
-    expect(resolveSource('jobs/2026-job-x/job.json')).toBeNull();
-    expect(resolveSource('jobs/2026-job-x/events.jsonl')).toBeNull();
-    expect(resolveSource('.index/embeddings.db')).toBeNull();
+    expect(resolveSource('.landsraad/jobs/2026-job-x/job.json')).toBeNull();
+    expect(resolveSource('.landsraad/jobs/2026-job-x/events.jsonl')).toBeNull();
+    expect(resolveSource('.landsraad/.index/embeddings.db')).toBeNull();
+    expect(resolveSource('.landsraad/council.json')).toBeNull();
+    // Product-tree code/data is never a structured source (and not indexed at all in Phase 1).
+    expect(resolveSource('src/app.ts')).toBeNull();
+    expect(resolveSource('docs/data.csv')).toBeNull();
   });
 
   it('maps a meeting transcript into one chunk per turn', () => {
-    write('meetings/2026-m1/meeting.json', JSON.stringify({ title: 'M1', chair_slug: 'quant' }));
+    write('.landsraad/meetings/2026-m1/meeting.json', JSON.stringify({ title: 'M1', chair_slug: 'quant' }));
     const body =
       '\n## Turn 1 — quant — 2026-06-02T00:00:00Z\n\nHello from quant.\n' +
       '\n## Turn 2 — director — 2026-06-02T00:01:00Z\n\nDirector speaks.\n';
-    const rel = 'meetings/2026-m1/transcript.md';
+    const rel = '.landsraad/meetings/2026-m1/transcript.md';
     const abs = write(rel, body);
     const src = resolveSource(rel)!;
     expect(src.kind).toBe('meeting_turn');
