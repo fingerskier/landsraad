@@ -33,6 +33,36 @@ export function isTerminal(status: OeuvreStatus): boolean {
   return TERMINAL.includes(status);
 }
 
+// ── Wall-clock accounting (excludes paused / crashed downtime) ───────────────
+// The wall budget should measure time the oeuvre was actually ACTIVE — not elapsed
+// since creation — or a pause (or a crash plus a later resume) would burn budget for
+// nothing. `active_ms` accumulates completed active spans; `active_since` marks the
+// start of the current open span (null while paused). Legacy oeuvres lack both;
+// we default `active_ms`→0 and treat an active one's span as starting at started_at.
+
+/** Active wall-clock ms consumed as of `nowMs` (epoch ms), excluding paused time. */
+export function activeElapsedMs(o: Oeuvre, nowMs: number): number {
+  const accrued = o.active_ms ?? 0;
+  const sinceIso = o.active_since ?? (o.status === 'active' ? o.started_at : null);
+  const open = sinceIso ? Math.max(0, nowMs - Date.parse(sinceIso)) : 0;
+  return accrued + open;
+}
+
+/** Fold the open active span (up to `atIso`) into the accumulator and stop the clock. */
+export function pauseClock(o: Oeuvre, atIso: string): void {
+  const sinceIso = o.active_since ?? (o.status === 'active' ? o.started_at : null);
+  if (sinceIso) {
+    o.active_ms = (o.active_ms ?? 0) + Math.max(0, Date.parse(atIso) - Date.parse(sinceIso));
+  }
+  o.active_since = null;
+}
+
+/** Begin a fresh active span at `atIso`. */
+export function resumeClock(o: Oeuvre, atIso: string): void {
+  o.active_ms = o.active_ms ?? 0;
+  o.active_since = atIso;
+}
+
 export interface NewOeuvreInput {
   title: string;
   goal: string;
@@ -112,7 +142,9 @@ export async function createOeuvre(input: NewOeuvreInput, now: Date = new Date()
     text_bytes: 0,
     leader_failures: 0,
     started_at: now.toISOString(),
-    concluded_at: null
+    concluded_at: null,
+    active_ms: 0,
+    active_since: now.toISOString()
   };
 
   const states: OeuvreParticipants = {};

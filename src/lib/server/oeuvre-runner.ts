@@ -1,16 +1,20 @@
 import type { Oeuvre, OeuvreEventType, OeuvreParticipants, ParticipantState } from '$lib/types';
 import {
+  activeElapsedMs,
   appendOeuvreEvent,
   appendTurnLine,
   createOeuvre,
   defaultParticipantState,
   isTerminal,
   listOeuvres,
+  pauseClock,
   readNote,
   readOeuvre,
+  readOeuvreEvents,
   readParticipants,
   readScratchpad,
   readTurnLines,
+  resumeClock,
   writeOeuvre,
   writeParticipants,
   writeScratchpad,
@@ -191,6 +195,7 @@ async function runWorkerTurn(
 async function setPaused(id: string, reason: string): Promise<void> {
   const o = await readOeuvre(id);
   if (o.status !== 'active') return;
+  pauseClock(o, nowIso());
   o.status = 'paused';
   o.pause_reason = reason;
   await writeOeuvre(o);
@@ -314,7 +319,7 @@ export async function advanceOeuvre(id: string): Promise<void> {
       await beginConcluding(id, 'budget_exceeded', 'max_turns');
       return;
     }
-    if (Date.now() - Date.parse(o.started_at) >= o.policy.max_wall_ms) {
+    if (activeElapsedMs(o, Date.now()) >= o.policy.max_wall_ms) {
       await beginConcluding(id, 'budget_exceeded', 'max_wall_ms');
       return;
     }
@@ -478,6 +483,7 @@ export async function advanceOeuvre(id: string): Promise<void> {
 export async function pauseOeuvre(id: string): Promise<void> {
   const o = await readOeuvre(id);
   if (o.status !== 'active') return;
+  pauseClock(o, nowIso());
   o.status = 'paused';
   o.pause_reason = undefined;
   await writeOeuvre(o);
@@ -487,6 +493,7 @@ export async function pauseOeuvre(id: string): Promise<void> {
 export async function resumeOeuvre(id: string): Promise<void> {
   const o = await readOeuvre(id);
   if (o.status !== 'paused') return;
+  resumeClock(o, nowIso());
   o.status = 'active';
   o.pause_reason = undefined;
   o.leader_failures = 0;
@@ -535,9 +542,20 @@ export async function recoverOeuvres(now: Date = new Date()): Promise<void> {
   const all = await listOeuvres();
   for (const o of all) {
     if (isTerminal(o.status)) continue;
+    // A deliberately director-paused oeuvre simply survives the restart as-is —
+    // it didn't crash, so don't relabel or stop its (already-stopped) clock.
+    if (o.status === 'paused') continue;
     const priorStatus = o.status;
-    o.status = 'failed';
-    o.concluded_at = now.toISOString();
+    // Park it as paused so the director can review and Resume from the durable
+    // scratchpad/votes/turns — losing a long loop's progress to one restart is far
+    // costlier than the single in-flight turn that's lost (its worker job is flipped
+    // to failed by job recovery; the turn was never recorded, so resume just re-picks).
+    // Fold active time only up to the last recorded activity, so the crash→restart
+    // downtime never counts against the wall budget.
+    const events = await readOeuvreEvents(o.id).catch(() => []);
+    const lastAliveIso = events.length ? events[events.length - 1].at : (o.active_since ?? o.started_at);
+    pauseClock(o, lastAliveIso);
+    o.status = 'paused';
     o.pause_reason = `crashed_during=${priorStatus}`;
     await writeOeuvre(o);
     await appendOeuvreEvent(o.id, {

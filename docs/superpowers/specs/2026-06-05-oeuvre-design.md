@@ -72,15 +72,15 @@ The scheduler's 30s `setInterval` gains a `tickOeuvres()` call (parallel to `tic
 ```ts
 type OeuvreStatus =
   | 'active'         // loop running (a leader-pick or worker turn may be in flight)
-  | 'paused'         // director paused, or leader unavailable; resumable
+  | 'paused'         // director paused, leader unavailable, or crash-parked on restart; resumable
   | 'concluding'     // consolidation pass in flight
   | 'concluded'      // consolidation written, locks released
   | 'cancelled'      // director cancelled; no consolidation
-  | 'failed';        // crashed while active/concluding
+  | 'failed';        // reserved terminal (crashes now park as `paused`, not `failed`)
 
 interface OeuvrePolicy {
   max_turns: number;          // hard cap on worker turns
-  max_wall_ms: number;        // hard cap on wall-clock since start
+  max_wall_ms: number;        // hard cap on ACTIVE wall-clock (excludes paused/crashed downtime)
   max_text_bytes: number;     // hard cap on cumulative prompt+output bytes ("Text KB/MB")
   max_consecutive_failures: number; // per-councillor: trips → that councillor goes `out`
 }
@@ -98,6 +98,8 @@ interface Oeuvre {
   text_bytes: number;         // running cumulative prompt+output byte count
   leader_failures: number;    // consecutive leader-pick failures (→ pause)
   started_at: string;
+  active_ms?: number;         // accumulated ACTIVE wall time (excludes paused spans)
+  active_since?: string | null; // start of the current active span; null while paused
   concluded_at?: string;
   pause_reason?: string;
   memory_slugs?: string[];        // private memories from consolidation
@@ -224,7 +226,7 @@ Parsed with the same whitespace-tolerant, unknown-tag-ignoring discipline as the
    * budget exceeded (turns | wall | text) → concluding (budget_exceeded)
    * convergence (all in-pool latest votes finish @ current version) → concluding (converged)
    * Any state → cancelled via director "cancel" (abort in-flight turn, release locks, no consolidation)
-   * Server restart: active|paused|concluding → failed, locks released
+   * Server restart: active|concluding → paused (crash-parked, pause_reason=`crashed_during=<status>`, resumable); paused stays paused; locks released. The one in-flight worker turn is lost — its job is flipped to failed by job recovery, and the turn was never recorded, so Resume just re-picks.
 ```
 
 ### Transitions
@@ -233,7 +235,7 @@ Parsed with the same whitespace-tolerant, unknown-tag-ignoring discipline as the
 
 - **active cycle** (`advance()`), in order:
   1. If a leader-pick or worker turn is in flight → no-op.
-  2. **Budget check** — `total_turns >= max_turns` OR `now - started_at >= max_wall_ms` OR `text_bytes >= max_text_bytes` ⇒ `concluding`, event `budget_exceeded`.
+  2. **Budget check** — `total_turns >= max_turns` OR `activeElapsedMs(o, now) >= max_wall_ms` (active wall time, excluding paused/crashed downtime) OR `text_bytes >= max_text_bytes` ⇒ `concluding`, event `budget_exceeded`.
   3. **Pool check** — if every participant is `out` ⇒ `concluding`, event `pool_exhausted`.
   4. **Conclusion check** — if every in-pool participant has `vote==='finish'` at the current `scratchpad_version` ⇒ `concluding`, event `converged`.
   5. Otherwise run a **leader-pick** call (`runAdapter`, `OEUVRE_LEADER_PICK_TIMEOUT_MS`). Parse `<<NEXT>>`:
@@ -251,7 +253,7 @@ Parsed with the same whitespace-tolerant, unknown-tag-ignoring discipline as the
 
 - **cancel**: status → `cancelled`. Abort any in-flight turn (same `AbortController` path as job cancel). Release locks. No consolidation.
 
-- **Server restart**: any `active|paused|concluding` oeuvre on boot → `failed` (`pause_reason="crashed_during=<status>"`), locks reset. No auto-resume (matches jobs/meetings).
+- **Server restart**: an `active|concluding` oeuvre on boot is **crash-parked** → `paused` (`pause_reason="crashed_during=<status>"`), locks reset, wall-clock folded up to the last recorded event so downtime doesn't burn the budget. A `paused` oeuvre stays paused. No *auto*-resume (a wedged adapter mustn't thrash on boot), but unlike jobs/meetings the durable scratchpad/votes/turns let the director **Resume** the loop from where it stopped.
 
 ### Consolidation
 
@@ -358,7 +360,7 @@ Section: Transcript (scrolling, newest first) — per turn: councillor chip + ts
   - conclude-now from active and paused → consolidation over partial scratchpad.
   - consolidation emits `<<MEMORY scope="shared">>` → council `memory/`; `<<JOB>>` → `proposals/jobs/`; consolidation failure non-fatal (still `concluded`).
   - cancel mid-turn: abort path, locks released, no consolidation.
-- `oeuvre-server-restart.test.ts` — orphaned non-terminal oeuvre on boot → `failed`, locks released.
+- `oeuvre-runner.test.ts` (crash recovery) — orphaned `active|concluding` oeuvre on boot → crash-parked `paused` (resumable to completion); a director-`paused` oeuvre stays paused; wall-clock excludes paused/crashed downtime.
 - `oeuvre-index.test.ts` — `createOeuvre` upserts `oeuvre_goal`; substantive edit upserts `oeuvre_scratchpad`; reindex walks `oeuvres/`.
 - Route tests for `/oeuvres/new` (create + one-active guard + leader-in-participants rejection) and `/oeuvres/[id]` (pause/resume/conclude/cancel/save-note).
 

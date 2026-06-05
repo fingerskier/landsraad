@@ -231,6 +231,16 @@ export interface Oeuvre {
   started_at: string;
   concluded_at: string | null;
   pause_reason?: string;
+  /**
+   * Wall-clock accounting that excludes paused / crashed downtime, so the
+   * `max_wall_ms` budget measures time actually spent ACTIVE. `active_ms` is the
+   * accumulated duration of completed active spans; `active_since` is the start of
+   * the current open span (null while paused). Both absent on pre-feature oeuvres —
+   * default `active_ms`→0 and treat an active oeuvre's span as starting at
+   * `started_at`.
+   */
+  active_ms?: number;
+  active_since?: string | null;
   memory_slugs?: string[];
   shared_memory_slugs?: string[];
   proposed_jobs?: string[];

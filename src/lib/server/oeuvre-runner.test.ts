@@ -9,6 +9,7 @@ import {
   concludeOeuvre,
   pauseOeuvre,
   recoverOeuvres,
+  resumeOeuvre,
   startOeuvre
 } from './oeuvre-runner';
 import { createOeuvre, readOeuvre, readParticipants, readScratchpad, readOeuvreEvents, writeNote } from './oeuvres';
@@ -306,13 +307,41 @@ describe('oeuvre-runner steering + director controls', () => {
 describe('oeuvre-runner crash recovery', () => {
   beforeEach(setup);
 
-  it('flips a non-terminal oeuvre to failed on restart', async () => {
+  it('parks a crashed (non-terminal) oeuvre as paused so the director can resume it', async () => {
     installScripts({ 's-leo': leaderPicker(['alice']), 's-alice': () => ({ stdout: '' }) });
     const o = await createOeuvre({ title: 'Crash', goal: 'g', leader_slug: 'leo', participants: ['alice'] });
     await recoverOeuvres();
-    const final = await readOeuvre(o.id);
-    expect(final.status).toBe('failed');
-    expect(final.pause_reason).toContain('crashed_during=active');
+    const parked = await readOeuvre(o.id);
+    expect(parked.status).toBe('paused');
+    expect(parked.pause_reason).toContain('crashed_during=active');
+    // The wall-clock was stopped so post-crash downtime can't burn the budget.
+    expect(parked.active_since == null).toBe(true);
+    expect(typeof parked.active_ms).toBe('number');
+    expect(await eventTypes(o.id)).toContain('crashed');
+  });
+
+  it('resumes a crash-parked oeuvre and drives it to completion', async () => {
+    installScripts({
+      's-leo': leaderPicker(['alice']),
+      's-alice': () => ({ stdout: '<<SCRATCHPAD>>\n# P\n<</SCRATCHPAD>>\n<<VOTE value="finish" reason="ok">>' })
+    });
+    const o = await createOeuvre({ title: 'CrashResume', goal: 'g', leader_slug: 'leo', participants: ['alice'] });
+    await recoverOeuvres();
+    expect((await readOeuvre(o.id)).status).toBe('paused');
+
+    await resumeOeuvre(o.id);
+    expect(await waitForTerminal(o.id)).toBe('concluded');
+    expect((await readScratchpad(o.id))).toContain('# P');
+  });
+
+  it('leaves a director-paused oeuvre paused on restart (not marked crashed)', async () => {
+    installScripts({ 's-leo': leaderPicker(['alice']), 's-alice': () => ({ stdout: '<<VOTE value="continue" reason="x">>' }) });
+    const o = await createOeuvre({ title: 'Parked', goal: 'g', leader_slug: 'leo', participants: ['alice'] });
+    await pauseOeuvre(o.id);
+    await recoverOeuvres();
+    const after = await readOeuvre(o.id);
+    expect(after.status).toBe('paused');
+    expect(after.pause_reason ?? '').not.toContain('crashed');
   });
 });
 
