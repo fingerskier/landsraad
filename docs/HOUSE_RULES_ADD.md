@@ -46,7 +46,7 @@ glossary describes.
 | 1 | What is delivered now? | **A plan doc only** (`docs/HOUSE_RULES_ADD.md`). No implementation yet. |
 | 2 | File name | Canonical **`AGENTS.md`** at the council root. |
 | 3 | Per-tool pickup | **Adapter-aware copies.** `AGENTS.md` is always written; a tool-specific file is created **only when a councillor uses that adapter** (e.g. a `cli:qwen` councillor ⇒ `QWEN.md`). |
-| 4 | Ownership | **Managed block, non-destructive.** Create the file with the Landsraad block if absent; if the file already exists, **append** the block; on refresh, update the block in place. Never clobbers existing user content. |
+| 4 | Ownership | **Managed block, non-destructive.** If the file is absent, create it with the Landsraad block; if it exists without our block, **append** it; if it already has our block, **replace that block with the latest text**. The check runs on create, startup, and adapter change. Never clobbers other content. |
 | 5 | Indexing | **Always index** — the Landsraad block extracted from `AGENTS.md` only, as a new `agents_doc` chunk kind. Copies are not indexed. |
 | 6 | Prompt injection | **None.** Delivery is native file pickup, not `assembleContextFor`. |
 | 7 | Which councils | **Every** council — written on create, refreshed on startup, and refreshed when adapters change (backfills + tracks the adapter-aware copy set). |
@@ -122,8 +122,11 @@ Rules for each managed file (`AGENTS.md` and every adapter copy):
 - **Exists, no Landsraad block** (a foreign `AGENTS.md`/`CLAUDE.md`, incl. **this
   repo's own** in dev) → **append** the block to the end, preserving all existing
   content.
-- **Exists, has the block** → replace the block in place (refresh to the current
-  version). If already current → no-op (don't churn mtime / re-embed).
+- **Exists, already has a Landsraad block** → **replace that block in place with
+  the latest canonical text** (located by the `LANDSRAAD:BEGIN … END` markers, so
+  surrounding content is untouched); if the existing block is already byte-identical
+  to the latest → no-op (don't churn mtime / re-embed). This is how a guide update
+  lands on an initialized council — the old block is swapped, never appended twice.
 
 The block content is **identical across all managed files** (one source
 constant), so copies never drift. There is no overwrite of foreign content
@@ -142,13 +145,21 @@ favor of this append-and-update model.
   watcher change**. The adapter copies (`CLAUDE.md`, `QWEN.md`, …) match no source
   and are **not indexed**, so there is exactly one `agents_doc` chunk.
 
-### Where it lands
+### Where it lands — and when the block refreshes
 
-- **On create:** `ensureAgentsDoc()` at the end of `createCouncil()`
-  (`src/lib/server/councils.ts`) — the single chokepoint, since `applyTemplate()`
-  routes through `createCouncil()` (`templates.ts:436`).
-- **On startup (backfill):** call from `src/hooks.server.ts`, guarded by
-  `hasCouncil()` so it never scaffolds into an empty dir before the setup form.
+`ensureAgentsDoc()` runs the same create / append / replace-latest logic at each
+trigger below. **Startup is the moment a shipped guide-version bump propagates**
+to an already-initialized council (the stale block is swapped for the new text);
+the other triggers keep the file present and the adapter-aware copy set in sync.
+
+- **On create:** at the end of `createCouncil()` (`src/lib/server/councils.ts`) —
+  the single chokepoint, since `applyTemplate()` routes through `createCouncil()`
+  (`templates.ts:436`). A blank create has no councillors yet, so only `AGENTS.md`
+  is written here; adapter copies appear via the councillor-change trigger as
+  councillors are added.
+- **On startup (backfill + version refresh):** call from `src/hooks.server.ts`,
+  guarded by `hasCouncil()` so it never scaffolds into an empty dir before the
+  setup form. Replaces a stale block with the latest text on every launch.
 - **On adapter change:** because the copy set is adapter-aware, refresh it when
   councillors are created / edited / deleted (`src/lib/server/councillors.ts`):
   ensure a copy exists for every adapter now present, and prune a copy whose
@@ -315,8 +326,11 @@ Source of truth lives in `SPECIFICATION.md` (`## Glossary`); the council
 - **Coverage gaps** — `mock:local`, `cli:grok`, and unconfirmed
   `cli:vibe`/`cli:warp`/`cli:aider` read no dropped file. Acceptable; revisit
   per-tool (confirm vibe/warp conventions).
-- **Versioning** — refresh via the `v1` tag in the BEGIN marker (bump on content
-  change) vs a content hash. Decide which.
+- **Versioning / staleness detection** — simplest is to **compare the extracted
+  block against the current canonical text and replace if they differ** (no
+  explicit version number needed); the `v1` tag in the BEGIN marker is then just
+  informational. A content hash in the marker is only an optimization if
+  extract-and-compare ever gets expensive.
 - **Glossary home** — `SPECIFICATION.md` vs a standalone `docs/glossary.md` the
   spec links. Leaning spec-as-source.
 
