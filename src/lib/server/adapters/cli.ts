@@ -171,8 +171,12 @@ export function runCliAdapter(
     signal: args.signal
   });
 
-  if (config.stdinMode === 'pipe' && child.stdin) {
-    child.stdin.write(args.prompt);
+  if (child.stdin) {
+    // `pipe` adapters get the prompt over stdin; `arg` adapters carry it in argv.
+    // Either way we MUST end stdin: an agentic CLI (e.g. the xAI Grok CLI) keeps
+    // reading stdin and won't exit until it sees EOF — leaving it open hangs the
+    // process until the turn timeout fires. Closing it sends that EOF immediately.
+    if (config.stdinMode === 'pipe') child.stdin.write(args.prompt);
     child.stdin.end();
   }
 

@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveModel, getCliConfig, parseAdapterId, shouldUseShell } from './cli';
+import { effectiveModel, getCliConfig, parseAdapterId, runCliAdapter, shouldUseShell } from './cli';
+
+describe('runCliAdapter stdin handling', () => {
+  it('closes stdin for arg-mode adapters so a stdin-reading CLI exits instead of hanging', async () => {
+    // `cat` with no args echoes stdin until EOF. In arg mode the prompt rides in argv,
+    // so if stdin is left open the process never exits — the real grok 120s-timeout bug.
+    const streams = runCliAdapter(
+      { id: 'cli:test-cat', command: 'cat', args: () => [], stdinMode: 'arg' },
+      { prompt: 'unused — rides in argv', cwd: process.cwd() }
+    );
+    for await (const _chunk of streams.chunks) {
+      void _chunk; // drain
+    }
+    const res = await streams.result;
+    expect(res.exit_code).toBe(0);
+  }, 4000);
+});
 
 describe('cli adapter configs', () => {
   it('codex exec is invoked with --skip-git-repo-check so non-git council dirs work', () => {
