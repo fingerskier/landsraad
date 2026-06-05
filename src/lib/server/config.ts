@@ -40,3 +40,16 @@ export const MEETING_TURN_NUDGE = envStr('LANDSRAAD_MEETING_TURN_NUDGE', '');
  * serves as a remote peer.
  */
 export const MEETING_MODEL = envStr('LANDSRAAD_MEETING_MODEL', '');
+
+// ── Oeuvre (goal-driven work loop) ──────────────────────────────────────────
+// Budgets are the governance that replaces the per-step proposal-approval gate:
+// the loop runs autonomously between turns, so a turn count, a wall-clock cap,
+// and a cumulative text-size cap (a real byte count, surfaced as "Text KB/MB" —
+// never called tokens, since CLI adapters don't report token usage) bound the cost.
+export const OEUVRE_MAX_TURNS_DEFAULT = envInt('LANDSRAAD_OEUVRE_MAX_TURNS', 30);
+export const OEUVRE_MAX_WALL_MS_DEFAULT = envInt('LANDSRAAD_OEUVRE_MAX_WALL_MS', 3_600_000);
+export const OEUVRE_MAX_TEXT_BYTES_DEFAULT = envInt('LANDSRAAD_OEUVRE_MAX_TEXT_BYTES', 2_000_000);
+export const OEUVRE_MAX_CONSEC_FAILURES = envInt('LANDSRAAD_OEUVRE_MAX_CONSEC_FAILURES', 3);
+export const OEUVRE_TURN_TIMEOUT_MS = envInt('LANDSRAAD_OEUVRE_TURN_TIMEOUT_MS', 300_000);
+export const OEUVRE_LEADER_PICK_TIMEOUT_MS = envInt('LANDSRAAD_OEUVRE_LEADER_PICK_TIMEOUT_MS', 120_000);
+export const OEUVRE_CONSOLIDATE_TIMEOUT_MS = envInt('LANDSRAAD_OEUVRE_CONSOLIDATE_TIMEOUT_MS', 120_000);

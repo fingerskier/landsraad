@@ -38,6 +38,10 @@ export interface Job {
   shared_memory_slugs?: string[];
   reflection_error?: string;
   spawned_by_schedule_id?: string | null;
+  /** When this job is a turn of an oeuvre loop, the owning oeuvre id. */
+  oeuvre_id?: string | null;
+  /** Zero-based turn index within the owning oeuvre. */
+  oeuvre_turn_idx?: number | null;
 }
 
 export interface JobEvent {
@@ -184,4 +188,116 @@ export interface MeetingEvent {
   speaker?: string;
   turn_index?: number;
   message?: string;
+}
+
+// ── Oeuvre — goal-driven, leader-orchestrated work loop ─────────────────────
+
+export type OeuvreStatus =
+  | 'active'
+  | 'paused'
+  | 'concluding'
+  | 'concluded'
+  | 'cancelled'
+  | 'failed';
+
+export interface OeuvrePolicy {
+  /** Hard cap on worker turns taken (failed turns count too). */
+  max_turns: number;
+  /** Hard cap on wall-clock since start, in ms. */
+  max_wall_ms: number;
+  /** Hard cap on cumulative prompt+output bytes ("Text KB/MB"). */
+  max_text_bytes: number;
+  /** Per-councillor consecutive failures before it drops from the vote pool. */
+  max_consecutive_failures: number;
+}
+
+export interface Oeuvre {
+  id: string;
+  title: string;
+  goal: string;
+  /** Orchestrator. Never takes a turn, never picks itself, never votes. */
+  leader_slug: string;
+  /** Voting/working pool. MUST NOT include the leader. */
+  participants: string[];
+  status: OeuvreStatus;
+  policy: OeuvrePolicy;
+  /** Bumped on every substantive scratchpad edit; invalidates stale finish votes. */
+  scratchpad_version: number;
+  total_turns: number;
+  /** Running cumulative prompt+output byte count. */
+  text_bytes: number;
+  /** Consecutive leader-pick failures; trips a pause when it hits the policy cap. */
+  leader_failures: number;
+  started_at: string;
+  concluded_at: string | null;
+  pause_reason?: string;
+  memory_slugs?: string[];
+  shared_memory_slugs?: string[];
+  proposed_jobs?: string[];
+}
+
+export type OeuvreVote = 'finish' | 'continue';
+
+export interface ParticipantState {
+  /** null = hasn't spoken yet (blocks conclusion). */
+  vote: OeuvreVote | null;
+  reason: string;
+  /** Scratchpad version this vote was cast against (freshness check). */
+  scratchpad_version: number;
+  /** Last worker turn this councillor took (-1 = none). */
+  turn_idx: number;
+  /** Consecutive failed turns. */
+  failures: number;
+  /** Dropped from routing + vote pool after too many failures. */
+  out: boolean;
+  ts: string;
+}
+
+export type OeuvreParticipants = Record<string, ParticipantState>;
+
+export type OeuvreEventType =
+  | 'created'
+  | 'leader_pick'
+  | 'turn_started'
+  | 'turn_finished'
+  | 'turn_failed'
+  | 'participant_out'
+  | 'scratchpad_edited'
+  | 'vote'
+  | 'converged'
+  | 'budget_exceeded'
+  | 'pool_exhausted'
+  | 'paused'
+  | 'resumed'
+  | 'concluding'
+  | 'concluded'
+  | 'consolidated'
+  | 'consolidation_failed'
+  | 'cancelled'
+  | 'crashed'
+  | 'note';
+
+export interface OeuvreEvent {
+  at: string;
+  type: OeuvreEventType;
+  message?: string;
+}
+
+export interface OeuvreTurnLine {
+  kind: 'leader_pick' | 'turn' | 'turn_failed';
+  ts: string;
+  // leader_pick
+  leader?: string;
+  picked?: string;
+  say?: string;
+  // turn / turn_failed
+  councillor?: string;
+  turn_idx?: number;
+  job_id?: string;
+  edited?: boolean;
+  scratchpad_version?: number;
+  vote?: OeuvreVote;
+  reason?: string;
+  failures?: number;
+  out?: boolean;
 }

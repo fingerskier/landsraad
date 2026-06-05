@@ -112,3 +112,16 @@ export function meetingIdFor(title: string, now: Date = new Date()): string {
 export function meetingsIncomingFile(): string {
   return join(councilRoot(), 'meetings-incoming.jsonl');
 }
+
+export function oeuvresDir(): string {
+  return join(councilRoot(), 'oeuvres');
+}
+
+export function oeuvreDir(oeuvreId: string): string {
+  return join(oeuvresDir(), oeuvreId);
+}
+
+export function oeuvreIdFor(title: string, now: Date = new Date()): string {
+  const ts = now.toISOString().replace(/[:.]/g, '-');
+  return `${ts}-${slugify(title)}`;
+}

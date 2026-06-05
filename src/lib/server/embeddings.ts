@@ -16,7 +16,8 @@ export type ChunkKind =
   | 'meeting_topic'
   | 'meeting_turn'
   | 'meeting_summary'
-  | 'meeting_synthesis';
+  | 'meeting_synthesis'
+  | 'oeuvre_scratchpad';
 
 export interface Embedder {
   dim: number;
