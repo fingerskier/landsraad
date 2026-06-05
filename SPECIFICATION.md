@@ -1,6 +1,6 @@
 # Landsraad — Specification
 
-Status: v1 (council + councillor + jobs + shared & private memory + reflection + agent proposals + council templates + adapters + activity dashboard + schedules + meetings). High-level only. Implementation details live in `docs/` and in code.
+Status: v1 (council + councillor + jobs + shared & private memory + reflection + agent proposals + council templates + adapters + activity dashboard + schedules + meetings + oeuvres). High-level only. Implementation details live in `docs/` and in code.
 
 ---
 
@@ -173,6 +173,12 @@ A meeting may include **remote attendees** — councillors belonging to other co
 | `GET` | `/api/peers` | Returns `{ peers: Peer[] }` where each `Peer = {council_slug, name, cwd, port, councillors: [{slug, label, adapter, busy}]}`. Discovered via the instance registry; self excluded; unreachable instances dropped. |
 | `POST` | `/api/meeting/turn` | **Loopback-only** (non-loopback callers receive 403). Body `{ meeting_id, host_council, councillor_slug, context: {title, topic, summary, recent_turns, speaker_instruction} }`. Runs one councillor turn locally and returns `{ ok:true, text, duration_ms }` or `{ ok:false, exit_code, detail }`. Returns 409 if the councillor is busy, 400 on bad/oversized/path-traversal identifiers, 404 if the councillor doesn't exist. |
 
+### Oeuvre
+
+A goal-directed, leader-orchestrated **work loop**. The director sets a goal, writes an optional steering note, and picks one councillor to **lead**. Each cycle the leader reads the current state, optionally says its piece, and picks which **participant** (a non-leader councillor) takes the next turn; the chosen councillor revises a shared **scratchpad** and casts a **vote** on whether the goal is achieved. The leader orchestrates and comments but never takes a turn, never picks itself, and never votes. Termination is **rolling latest-vote**: the runner tracks each participant's most recent vote and concludes when every *in-pool* participant's latest vote is `finish` against the current scratchpad version — a substantive scratchpad edit bumps the version and invalidates standing finish votes, so convergence means "the work went quiet and everyone signs off on the same draft." A councillor whose turn keeps failing is dropped from the vote pool (it counts as out, not a blocker) so a broken adapter can't deadlock the loop. An oeuvre also concludes on a budget — turn count, wall-clock, or cumulative text size — or when the director stops it.
+
+Each turn is a real **job** under the hood (full `input`/`transcript`/`output` artifacts, one-running-job-per-councillor lock); the leader-pick is a lighter routing-only adapter call. The director steers from the side: the **note** is live-editable and picked up at the top of each call, and the director can pause / resume / conclude-now / cancel at any time. On conclusion a **consolidation pass** (authored by the leader) distills the scratchpad + work log into memories (and optional follow-up `<<JOB>>` proposals) via the existing reflection plumbing. Where a meeting is synchronous talk that blocks on the director each round, an oeuvre is an asynchronous work loop that produces an artifact. v1 runs **one active oeuvre at a time** per council. See [`docs/superpowers/specs/2026-06-05-oeuvre-design.md`](docs/superpowers/specs/2026-06-05-oeuvre-design.md).
+
 ### Dogfood Council
 
 A built-in council for testing Landsraad itself. The CLI command `npm run dogfood:init [path]` seeds the target directory (default `./dogfood`) with two `mock:local` councillors, one shared memory note, and one sample job. From there, `cd dogfood && npx landsraad` (or `LANDSRAAD_COUNCIL_ROOT=./dogfood npm run dev` from the repo) operates against it. This is what the director uses to exercise the app without burning real-CLI tokens.
@@ -191,6 +197,7 @@ A built-in council for testing Landsraad itself. The CLI command `npm run dogfoo
 10. **Install / export templates.** `npx landsraad init <source>` and `npx landsraad export <out.json>` (or `/import` and `/export` in the UI). `npm run dogfood:init` installs `templates/dogfood.template.json` into `./dogfood`.
 11. **Schedules.** Declare future or recurring work via `/schedules` (or "Save as schedule" on `/jobs/new`). The in-process scheduler ticks every 30s, spawning jobs on the configured councillor.
 12. **Meetings.** Convene a round-table at `/meetings/new`. Director participates each round; councillors speak in random order; chair writes a synthesis on end that is parsed for `<<MEMORY>>` / `<<JOB>>` blocks. Topic, transcript, summary, and synthesis are embedded into the memory index.
+13. **Oeuvres.** Start a goal-driven work loop at `/oeuvres/new`. A leader councillor picks who takes each turn; the picked councillor revises a shared scratchpad and votes; the loop concludes when all latest votes are `finish` (against the current scratchpad version), a budget is hit, or the director stops it. The director steers via a live-editable note and can pause / resume / conclude / cancel. On conclusion a consolidation pass distills the work into memories and follow-up proposals.
 
 ## Storage Model
 
@@ -228,6 +235,14 @@ The council root is the current working directory of the Landsraad process. Over
       summary.md                 # chair-written rolling summary of displaced turns
       synthesis.md               # chair-written closing synthesis (scanned for <<MEMORY>>/<<JOB>>)
       events.jsonl               # one line per state transition or turn event
+  oeuvres/
+    <oeuvre-id>/                 # oeuvre-id is timestamped + slugged
+      oeuvre.json                # id, title, goal, leader_slug, participants, status, policy, scratchpad_version, text_bytes, *_at, memory bookkeeping
+      note.md                    # director's live, editable steering note
+      scratchpad.md              # the baton — current best artifact, revised by worker turns
+      participants.json          # per-participant vote + pool/health ledger (vote, out, failures)
+      turns.jsonl                # one line per leader-pick and per worker turn (links the turn's job)
+      events.jsonl               # one line per state transition or progress event
   .index/
     embeddings.db                # sqlite-vec index; regenerable
 ```
@@ -268,6 +283,9 @@ The app never writes outside the council root. It never writes secrets to disk. 
 | `/meetings` | List meetings with status + round + turn count |
 | `/meetings/new` | Convene a meeting: title, topic, chair, attendees, window_k |
 | `/meetings/[id]` | Meeting detail: live transcript, director speak/skip, end / cancel / resume |
+| `/oeuvres` | List oeuvres with status, leader, turn count, and vote tally |
+| `/oeuvres/new` | Start an oeuvre: title, goal, leader, participants, optional note, budget policy |
+| `/oeuvres/[id]` | Oeuvre detail: live scratchpad + scrolling transcript, editable note, vote ledger; pause / resume / conclude / cancel |
 
 A persistent header links back to `/` via the brand; the system links (Meetings, Schedules, Install template, Export, Council, Help) live in a hamburger menu. The council home is the working surface.
 

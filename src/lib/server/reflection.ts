@@ -68,7 +68,7 @@ import { createJobProposal } from './proposals';
 export interface ApplyReflectionInput {
   text: string;
   sourceCouncillorSlug: string;
-  sourceKind: 'job' | 'meeting';
+  sourceKind: 'job' | 'meeting' | 'oeuvre';
   sourceId: string;
 }
 
@@ -103,7 +103,8 @@ export async function applyReflectionBlocks(input: ApplyReflectionInput): Promis
     try {
       const p = await createJobProposal({
         proposed_by: input.sourceCouncillorSlug,
-        source_job_id: input.sourceKind === 'job' ? input.sourceId : `meeting:${input.sourceId}`,
+        source_job_id:
+          input.sourceKind === 'job' ? input.sourceId : `${input.sourceKind}:${input.sourceId}`,
         title: jb.title,
         brief: jb.brief,
         target_councillor: jb.councillor,

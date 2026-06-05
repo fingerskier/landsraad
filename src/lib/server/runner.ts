@@ -74,6 +74,17 @@ export async function cancelJob(jobId: string): Promise<void> {
 
 export interface RunOptions {
   adapterOverride?: ResolvedAdapter;
+  /**
+   * Skip the post-success reflection pass. Oeuvre worker turns set this — the
+   * oeuvre runs a single consolidation pass on conclusion instead of reflecting
+   * per turn.
+   */
+  skipReflection?: boolean;
+  /**
+   * Adapter timeout in ms. Defaults to -1 (no timeout) to preserve job
+   * semantics; oeuvre turns pass a bounded value.
+   */
+  timeoutMs?: number;
 }
 
 async function reflectAfterSuccess(
@@ -221,7 +232,7 @@ export async function runJobNow(jobId: string, opts: RunOptions = {}): Promise<J
         adapter,
         prompt,
         cwd: councilRoot(),
-        timeoutMs: -1, // no timeout for jobs in v0
+        timeoutMs: opts.timeoutMs ?? -1, // no timeout for jobs in v0; oeuvre turns bound it
         abortSignal: controller.signal,
         onStdout: (text) => { void appendTranscript(jobId, text); },
         onStderr: (text) => {
@@ -266,7 +277,9 @@ export async function runJobNow(jobId: string, opts: RunOptions = {}): Promise<J
         const active = runs.get(jobId);
         if (active) active.phase = 'reflecting';
         try {
-          await reflectAfterSuccess(succeeded, councillor, adapter, controller.signal);
+          if (!opts.skipReflection) {
+            await reflectAfterSuccess(succeeded, councillor, adapter, controller.signal);
+          }
         } catch (err) {
           await appendEvent(jobId, {
             at: new Date().toISOString(),

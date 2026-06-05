@@ -154,6 +154,8 @@ vite.config.ts.timestamp-*
 /jobs/
 /proposals/
 /meetings/
+/schedules/
+/oeuvres/
 /.index/
 
 # dogfood:init target dirs

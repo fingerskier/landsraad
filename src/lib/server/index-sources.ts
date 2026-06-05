@@ -129,7 +129,24 @@ const SOURCES: IndexSource[] = [
   },
   meetingWholeSource('topic\\.md', 'meeting_topic', '', false),
   meetingWholeSource('summary\\.md', 'meeting_summary', ' · summary', true),
-  meetingWholeSource('synthesis\\.md', 'meeting_synthesis', ' · synthesis', true)
+  meetingWholeSource('synthesis\\.md', 'meeting_synthesis', ' · synthesis', true),
+  {
+    kind: 'oeuvre_scratchpad',
+    test: (rel) => /^oeuvres\/[^/]+\/scratchpad\.md$/.test(norm(rel)),
+    refId: (rel) => norm(rel).split('/')[1],
+    buildChunks: (text, rel, abs) => {
+      const o = readJson(sibling(abs, 'oeuvre.json'));
+      const title = (o?.title as string) ?? norm(rel).split('/')[1];
+      return [
+        {
+          chunk_idx: 0,
+          text,
+          title: `${title} · scratchpad`,
+          councillor_slug: (o?.leader_slug as string) ?? null
+        }
+      ];
+    }
+  }
 ];
 
 export function resolveSource(rel: string): IndexSource | null {

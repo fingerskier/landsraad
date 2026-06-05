@@ -9,6 +9,7 @@ import {
 } from './schedules';
 import { listMeetings } from './meetings';
 import { recoverMeetings, advance as advanceMeeting } from './meeting-runner';
+import { recoverOeuvres, tickOeuvres } from './oeuvre-runner';
 import { nextFire, validateCron } from './cron';
 import type { Schedule } from '$lib/types';
 
@@ -194,6 +195,7 @@ export async function startScheduler(now: Date = new Date()): Promise<void> {
   if (interval) return;
   try {
     await recoverMeetings(now);
+    await recoverOeuvres(now);
     await catchUp(now);
   } catch (err) {
     console.error('[scheduler] startup failed:', err);
@@ -201,6 +203,7 @@ export async function startScheduler(now: Date = new Date()): Promise<void> {
   interval = setInterval(() => {
     void tickOnce();
     void tickMeetings();
+    void tickOeuvres().catch((err) => console.error('[scheduler] oeuvre tick crashed:', err));
   }, TICK_MS);
 }
 

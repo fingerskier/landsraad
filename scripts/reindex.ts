@@ -13,7 +13,8 @@ process.env.LANDSRAAD_COUNCIL_ROOT = TARGET;
 const { listCouncillors } = await import('../src/lib/server/councillors');
 const { listJobs } = await import('../src/lib/server/jobs');
 const { listNotes } = await import('../src/lib/server/memory');
-const { councilRoot, councillorDir, councillorMemoryDir, jobDir, memoryDir } = await import('../src/lib/server/paths');
+const { listOeuvres } = await import('../src/lib/server/oeuvres');
+const { councilRoot, councillorDir, councillorMemoryDir, jobDir, memoryDir, oeuvreDir } = await import('../src/lib/server/paths');
 const { closeAll, indexUpsert, setEmbedder } = await import('../src/lib/server/indexer');
 const { xenovaEmbedder } = await import('../src/lib/server/embedder-xenova');
 import type { ChunkKind } from '../src/lib/server/embeddings';
@@ -95,6 +96,25 @@ async function collectJobs(): Promise<Target[]> {
   return targets;
 }
 
+async function collectOeuvres(): Promise<Target[]> {
+  const oeuvres = await listOeuvres();
+  const targets: Target[] = [];
+  for (const o of oeuvres) {
+    const p = join(oeuvreDir(o.id), 'scratchpad.md');
+    if (!existsSync(p)) continue;
+    const sz = (await stat(p)).size;
+    if (sz === 0) continue;
+    targets.push({
+      kind: 'oeuvre_scratchpad',
+      ref_id: o.id,
+      path: p,
+      title: `${o.title} · scratchpad`,
+      councillor_slug: o.leader_slug
+    });
+  }
+  return targets;
+}
+
 async function reindex(): Promise<void> {
   if (!existsSync(councilRoot())) {
     console.error(`Council root not found at ${councilRoot()}`);
@@ -108,7 +128,8 @@ async function reindex(): Promise<void> {
     ...(await collectMemory()),
     ...(await collectPrivateMemories()),
     ...(await collectPersonas()),
-    ...(await collectJobs())
+    ...(await collectJobs()),
+    ...(await collectOeuvres())
   ];
   console.log(`  ${targets.length} document(s) to consider`);
 
