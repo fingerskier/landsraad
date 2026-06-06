@@ -96,7 +96,7 @@ Open the URL it prints (Vite picks a port, usually `http://localhost:5173`).
   proposals/     meetings/      schedules/ oeuvres/   .index/
 ```
 
-`.landsraad/` is **gitignored** (a single `/.landsraad/` line in [`.gitignore`](./.gitignore)), so your local experimentation never shows up in `git status` and can't be committed by accident. Hack freely — it's a scratch council.
+The `.landsraad/` snapshot committed to this repo is an **exemplar council** — a worked example (councillors, a meeting, a job) shipped for reference. Only the regenerable/transient bits are gitignored (`.landsraad/.index/`, `.landsraad/meetings-incoming.jsonl` — see [`.gitignore`](./.gitignore)); the rest is tracked on purpose. So when you `npm run dev` against the clone, your experiments **do** show up in `git status` against the exemplar — review diffs before committing, or point the dev server at a throwaway directory (see below) to hack freely without touching the tracked snapshot.
 
 ### Target a different council directory
 
