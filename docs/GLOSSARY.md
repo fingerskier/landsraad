@@ -19,6 +19,20 @@ coordination runs through the director** — councillors never command each othe
 **Council** — a group of councillors plus all of its state on disk. A council
 *is* a directory: one council per directory, no shared database.
 
+**Council root** — the current working directory when `npx landsraad` starts.
+Adapters run with this as `cwd`, so councillors can read and edit the product
+tree directly. To run more than one council, use more than one directory.
+
+**Council machine** — the council's own state under `.landsraad/`: `council.json`,
+`councillors/`, `memory/`, `jobs/`, `meetings/`, `oeuvres/`, `.index/`, and
+related run artifacts. The machine is hidden so the root stays clear for product
+work.
+
+**Product tree** — the director's actual project files in the council root,
+outside `.landsraad/`: docs, code, notes, CSVs, and anything else the council is
+helping assemble. Product prose (`.md` and `.txt`) may be indexed as
+`project_file`; code and binaries are not semantic-indexed.
+
 **Councillor** — a named AI member of a council. A councillor is the sum of three
 things: a **role** (what it's for), a **persona** (how it thinks and writes), and
 an **adapter** (how it's actually run). "Agent" and "council member" are informal
@@ -26,10 +40,11 @@ synonyms; the product UI says "councillor".
 
 **Adapter** — how a councillor is invoked. Two forms ship today: `mock:local`
 (a deterministic stub for testing) and `cli:<tool>` (runs a local CLI as a
-subprocess — e.g. `claude`, `codex`, `gemini`, `grok`, `qwen`, `aider`). An empty
-adapter means the councillor can't run, so its jobs stay queued. A `?model=<id>`
-suffix pins a model; tier aliases `lite` / `medium` / `heavy` ask for a
-small / mid / large model. `sdk:*` adapters are future work and out of scope today.
+subprocess: `cli:claude`, `cli:codex`, `cli:gemini`, `cli:grok`, `cli:qwen`,
+`cli:vibe`, `cli:aider`, `cli:warp`). An empty adapter means the councillor can't
+run, so its jobs stay queued. A `?model=<id>` suffix pins a model; tier aliases
+`lite` / `medium` / `heavy` ask for a small / mid / large model. `sdk:*` adapters
+are future work and out of scope today.
 
 ---
 
@@ -92,8 +107,9 @@ the **council machine** (state under `.landsraad/`) and the **product** (`.md` a
 
 **Chunk kind** — the type tag on an indexed or retrieved piece of text:
 `memory`, `memory_private`, `job_input`, `job_output`, `transcript`, `persona`,
-and `project_file`. (`project_file` is a prose file from *your* project tree, as
-opposed to the council's own machine state.)
+`meeting_topic`, `meeting_turn`, `meeting_summary`, `meeting_synthesis`,
+`oeuvre_scratchpad`, and `project_file`. (`project_file` is a prose file from
+the product tree, as opposed to the council's own machine state.)
 
 ---
 

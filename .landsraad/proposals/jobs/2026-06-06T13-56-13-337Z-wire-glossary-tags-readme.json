@@ -1,0 +1,12 @@
+{
+  "id": "2026-06-06T13-56-13-337Z-wire-glossary-tags-readme",
+  "kind": "job",
+  "proposed_by": "fenring",
+  "source_job_id": "2026-06-06T13-54-04-860Z-documentation-upgrade-turn-3-fenring",
+  "title": "wire-glossary-tags-readme",
+  "brief": "Link `docs/GLOSSARY.md` and `docs/TAGS.md` from `README.md` and/or the docs entry surface so newcomers can find the new references. Decide whether `gzip_density` and the planned `AGENTS.md` council-guide need planned stubs while doing the wiring.",
+  "target_councillor": "shaddam",
+  "priority": "normal",
+  "status": "pending",
+  "created_at": "2026-06-06T13:56:13.337Z"
+}

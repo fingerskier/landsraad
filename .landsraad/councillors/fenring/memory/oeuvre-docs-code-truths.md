@@ -1,0 +1,3 @@
+# oeuvre-docs-code-truths
+
+For Landsraad docs work, the current code-backed truths are: shipped CLI adapters are `cli:claude`, `cli:codex`, `cli:gemini`, `cli:grok`, `cli:qwen`, `cli:vibe`, `cli:aider`, `cli:warp`; `ChunkKind` includes meeting kinds and `oeuvre_scratchpad`; `<<SCRATCHPAD>>` ratification trims surrounding whitespace before comparison; `<<VOTE>>` can use either `reason="..."` or a paired block body, with the body winning. This is worth remembering because these were the exact parser/registry mismatches that drifted from the first glossary/tag docs draft.

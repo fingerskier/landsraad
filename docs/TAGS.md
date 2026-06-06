@@ -109,8 +109,9 @@ role. (See [Oeuvres](GLOSSARY.md#oeuvres-asynchronous-work-loops).)
 - Present, non-empty, and **different** from the current scratchpad ⇒ a
   **substantive edit**: it overwrites `scratchpad.md` and bumps
   `scratchpad_version` (which invalidates standing `finish` votes).
-- **Absent or byte-identical** ⇒ no edit (a ratification); the version is
-  unchanged. Omit the block when you mean "leave it as is".
+- **Absent or equivalent after surrounding whitespace is trimmed** ⇒ no edit (a
+  ratification); the version is unchanged. Omit the block when you mean "leave it
+  as is".
 - Emit the **whole** artifact, not a diff — the block is the new scratchpad in full.
 
 ## `<<VOTE>>`
@@ -122,8 +123,10 @@ role. (See [Oeuvres](GLOSSARY.md#oeuvres-asynchronous-work-loops).)
 ```
 
 - `value` — `finish` or `continue`.
-- `reason` — one line. On a `continue` vote this is what the leader routes on next,
-  so make it actionable.
+- `reason` — one line, either as `reason="..."` or as the body of a paired
+  `<<VOTE value="continue">>...<</VOTE>>` block. If both are present, the body
+  wins. On a `continue` vote this is what the leader routes on next, so make it
+  actionable.
 - A missing or malformed `<<VOTE>>` is treated as `continue` with
   `reason="(no vote emitted)"` — a broken turn can never accidentally conclude the
   loop.
