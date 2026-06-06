@@ -13,7 +13,7 @@ Notes for AI agents (and humans) working on this codebase.
 ## Development loop
 
 1. **Update the spec first** if the task changes product behavior. `SPECIFICATION.md` is the source of truth.
-2. **Red/green TDD.** Tests live next to code (`*.test.ts`). Run with `npm test`.
+2. **Red/green TDD.** Tests live next to code (`*.test.ts`). Run with `npm test`.  If covereage exists then extend/modify it.
 3. **Smoke test the UI** with `npm run dev` for anything user-facing. Type-check with `npm run check`.
 4. **Update docs** (`README.md`, `docs/`) when behavior or layout changes.
 

@@ -1,0 +1,12 @@
+{
+  "id": "2026-06-06T13-39-47-840Z-align-glossary-adapter-roster-and-sdk-status-with-reality",
+  "kind": "job",
+  "proposed_by": "vladimir",
+  "source_job_id": "oeuvre:2026-06-05T16-35-01-093Z-documentation-upgrade",
+  "title": "Align GLOSSARY adapter roster and sdk:* status with reality",
+  "brief": "brief: Expand the examples in the Adapter entry to the full current cli:* set (add vibe, warp). Adjust the sdk:* sentence to match adapters/index.ts:141-142 (they are already declared in KNOWN_ADAPTERS with available:false and an install note, even though the resolve path returns null today). Keep the \"out of scope for v1 *use*\" warning if we still want it.",
+  "target_councillor": "shaddam",
+  "priority": "normal",
+  "status": "pending",
+  "created_at": "2026-06-06T13:39:47.840Z"
+}

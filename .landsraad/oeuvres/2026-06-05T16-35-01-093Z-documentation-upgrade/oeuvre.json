@@ -1,0 +1,33 @@
+{
+  "id": "2026-06-05T16-35-01-093Z-documentation-upgrade",
+  "title": "Documentation Upgrade",
+  "goal": "Read documentation to create a docs/GLOSSARY.md of Landsraad specific agent terms (things like \"turn\", \"councillor\", \"oeuvre\" that have a special meaning to Landsraad agents) and a docs/TAGS.md that explains the agents tags like <<JOB ..>>, <<MEMORY ...>>, etc.",
+  "leader_slug": "vladimir",
+  "participants": [
+    "fenring",
+    "leto",
+    "shaddam"
+  ],
+  "status": "concluded",
+  "policy": {
+    "max_turns": 30,
+    "max_wall_ms": 3600000,
+    "max_text_bytes": 1999872,
+    "max_consecutive_failures": 3
+  },
+  "scratchpad_version": 1,
+  "total_turns": 3,
+  "text_bytes": 136089,
+  "leader_failures": 0,
+  "started_at": "2026-06-05T16:35:01.093Z",
+  "concluded_at": "2026-06-06T13:39:47.843Z",
+  "active_ms": 1263208,
+  "active_since": "2026-06-06T13:37:50.963Z",
+  "memory_slugs": [],
+  "shared_memory_slugs": [],
+  "proposed_jobs": [
+    "2026-06-06T13-39-47-839Z-complete-chunk-kinds-and-retire-stale-embeddings-md-status",
+    "2026-06-06T13-39-47-840Z-align-glossary-adapter-roster-and-sdk-status-with-reality",
+    "2026-06-06T13-39-47-841Z-surface-council-root-vs-data-root-distinction-in-the-frame-secti"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "2026-06-05T16-36-22-736Z-documentation-upgrade-turn-1-shaddam",
+  "title": "Documentation Upgrade · turn 1 · shaddam",
+  "brief": "You are advancing a shared work loop (\"oeuvre\") toward a goal.\n\n## Goal\n\nRead documentation to create a docs/GLOSSARY.md of Landsraad specific agent terms (things like \"turn\", \"councillor\", \"oeuvre\" that have a special meaning to Landsraad agents) and a docs/TAGS.md that explains the agents tags like <<JOB ..>>, <<MEMORY ...>>, etc.\n\n\n## Leader says\n\nRead SPECIFICATION.md + all docs/*.md; seed scratchpad with structured first-pass GLOSSARY of terms + TAGS syntaxes\n\n## Current scratchpad (v0)\n\n(empty — nothing written yet)\n\n## Your task\n\nRevise the scratchpad to move the goal forward, OR ratify it unchanged if you\nbelieve the goal is met. If you edit, return the FULL updated scratchpad between\nthe fences (omit the block entirely to make no change):\n\n<<SCRATCHPAD>>\n...full updated scratchpad markdown...\n<</SCRATCHPAD>>\n\nThen vote on whether the goal is achieved. Emit exactly one:\n\n<<VOTE value=\"finish|continue\" reason=\"one line: why\">>\n",
+  "councillor_slug": "shaddam",
+  "status": "succeeded",
+  "created_at": "2026-06-05T16:36:22.736Z",
+  "started_at": "2026-06-05T16:36:22.846Z",
+  "finished_at": "2026-06-05T16:38:04.724Z",
+  "exit_code": 0,
+  "error": null,
+  "spawned_by_schedule_id": null,
+  "oeuvre_id": "2026-06-05T16-35-01-093Z-documentation-upgrade",
+  "oeuvre_turn_idx": 0
+}

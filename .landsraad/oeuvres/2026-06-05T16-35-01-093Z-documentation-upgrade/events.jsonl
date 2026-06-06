@@ -1,0 +1,50 @@
+{"at":"2026-06-05T16:35:01.093Z","type":"created"}
+{"at":"2026-06-05T16:35:15.089Z","type":"leader_pick","message":"vladimir → fenring"}
+{"at":"2026-06-05T16:35:15.090Z","type":"turn_started","message":"fenring"}
+{"at":"2026-06-05T16:35:19.494Z","type":"turn_failed","message":"fenring"}
+{"at":"2026-06-05T16:36:22.735Z","type":"leader_pick","message":"vladimir → shaddam"}
+{"at":"2026-06-05T16:36:22.738Z","type":"turn_started","message":"shaddam"}
+{"at":"2026-06-05T16:36:48.492Z","type":"leader_pick","message":"vladimir → shaddam"}
+{"at":"2026-06-05T16:38:04.725Z","type":"scratchpad_edited","message":"v1"}
+{"at":"2026-06-05T16:38:04.725Z","type":"vote","message":"shaddam: continue"}
+{"at":"2026-06-05T16:38:04.725Z","type":"turn_finished","message":"shaddam"}
+{"at":"2026-06-05T16:38:20.447Z","type":"leader_pick","message":"vladimir → shaddam"}
+{"at":"2026-06-05T16:38:20.448Z","type":"turn_started","message":"shaddam"}
+{"at":"2026-06-05T16:38:56.340Z","type":"leader_pick","message":"vladimir → shaddam"}
+{"at":"2026-06-05T16:39:09.779Z","type":"leader_pick","message":"vladimir → shaddam"}
+{"at":"2026-06-05T16:39:09.780Z","type":"turn_started","message":"shaddam"}
+{"at":"2026-06-05T16:39:41.299Z","type":"crashed","message":"crashed_during=active"}
+{"at":"2026-06-05T16:41:08.586Z","type":"crashed","message":"crashed_during=active"}
+{"at":"2026-06-05T16:41:15.749Z","type":"scratchpad_edited","message":"v1"}
+{"at":"2026-06-05T16:41:15.749Z","type":"vote","message":"shaddam: continue"}
+{"at":"2026-06-05T16:41:15.749Z","type":"turn_finished","message":"shaddam"}
+{"at":"2026-06-05T16:41:23.452Z","type":"scratchpad_edited","message":"v2"}
+{"at":"2026-06-05T16:41:23.452Z","type":"vote","message":"shaddam: continue"}
+{"at":"2026-06-05T16:41:23.452Z","type":"turn_finished","message":"shaddam"}
+{"at":"2026-06-05T16:42:06.492Z","type":"paused","message":"leader_unavailable"}
+{"at":"2026-06-05T16:42:11.352Z","type":"paused","message":"leader_unavailable"}
+{"at":"2026-06-05T16:42:54.375Z","type":"crashed","message":"crashed_during=paused"}
+{"at":"2026-06-05T17:06:07.753Z","type":"note","message":"recovered: failed→paused (resumable)"}
+{"at":"2026-06-05T17:09:23.160Z","type":"resumed"}
+{"at":"2026-06-05T17:16:17.330Z","type":"paused","message":"leader_unavailable"}
+{"at":"2026-06-05T18:26:28.041Z","type":"resumed"}
+{"at":"2026-06-05T18:28:28.305Z","type":"note","message":"leader pick failed (1/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T18:30:50.419Z","type":"note","message":"leader pick failed (2/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T18:33:20.440Z","type":"note","message":"leader pick failed (3/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T18:33:20.454Z","type":"paused","message":"leader_unavailable: leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T19:12:33.887Z","type":"resumed"}
+{"at":"2026-06-05T19:14:33.973Z","type":"note","message":"leader pick failed (1/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T19:14:50.497Z","type":"note","message":"leader pick failed (1/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T19:17:01.437Z","type":"note","message":"leader pick failed (2/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T19:17:20.500Z","type":"note","message":"leader pick failed (2/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T19:19:31.445Z","type":"note","message":"leader pick failed (3/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T19:19:31.449Z","type":"paused","message":"leader_unavailable: leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T19:19:50.513Z","type":"note","message":"leader pick failed (3/3): leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-05T19:19:50.516Z","type":"paused","message":"leader_unavailable: leader adapter \"cli:grok\" timed out after 120000ms"}
+{"at":"2026-06-06T13:37:50.965Z","type":"resumed"}
+{"at":"2026-06-06T13:38:28.382Z","type":"leader_pick","message":"vladimir → fenring"}
+{"at":"2026-06-06T13:38:28.385Z","type":"turn_started","message":"fenring"}
+{"at":"2026-06-06T13:38:31.006Z","type":"concluding","message":"director"}
+{"at":"2026-06-06T13:38:31.008Z","type":"turn_failed","message":"fenring"}
+{"at":"2026-06-06T13:39:47.843Z","type":"consolidated","message":"mem=0 shared=0 proposals=3"}
+{"at":"2026-06-06T13:39:47.844Z","type":"concluded"}

@@ -1,0 +1,12 @@
+{
+  "id": "2026-06-06T13-39-47-839Z-complete-chunk-kinds-and-retire-stale-embeddings-md-status",
+  "kind": "job",
+  "proposed_by": "vladimir",
+  "source_job_id": "oeuvre:2026-06-05T16-35-01-093Z-documentation-upgrade",
+  "title": "Complete chunk kinds and retire stale embeddings.md status",
+  "brief": "brief: Update GLOSSARY.md \"Chunk kind\" entry (and the Index section) to the full list from embeddings.ts:9-21 + the sources that are actually wired in index-sources.ts (add the four meeting_* kinds and oeuvre_scratchpad; note that oeuvre_goal was designed but not implemented). Either delete or clearly mark embeddings.md as historical (it still claims the whole feature is \"proposed / implementation pending\"). Cross-link to the live code or data-model if we want a single source.",
+  "target_councillor": "shaddam",
+  "priority": "normal",
+  "status": "pending",
+  "created_at": "2026-06-06T13:39:47.839Z"
+}
